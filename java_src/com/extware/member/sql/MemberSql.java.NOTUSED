@@ -1,0 +1,4090 @@
+package com.extware.member.sql;
+
+import com.extware.framework.DropDownOption;
+
+import com.extware.member.Member;
+import com.extware.member.MemberContact;
+import com.extware.member.MemberFile;
+import com.extware.member.MemberJob;
+import com.extware.member.MemberProfile;
+
+import com.extware.utils.BooleanUtils;
+import com.extware.utils.DatabaseUtils;
+import com.extware.utils.EncodeUtils;
+import com.extware.utils.NumberUtils;
+import com.extware.utils.PropertyFile;
+import com.extware.utils.StringUtils;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Types;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+
+import javax.naming.NamingException;
+
+import javax.servlet.ServletException;
+
+/**
+ * SQL class for Member Object and it's sub-objects
+ *
+ * @author   John Milner
+ */
+public class MemberSql
+{
+
+  private static String INSERT_MEMBERCONTACT_SQL =
+      "INSERT INTO MEMBERCONTACTS ( " +
+      "name, nameFirstLetter, statusRef ,statusOther ,primaryCategoryRef ,primaryDisciplineRef, secondaryCategoryRef, " +
+      "secondaryDisciplineRef,  tertiaryCategoryRef, tertiaryDisciplineRef ,sizeRef ,countryRef ,regionRef, " +
+      "address1 ,address2 ,city ,postcode ,countyRef ,contactTitleRef ,contactFirstName, " +
+      "contactSurname ,telephone ,mobile ,fax ,webaddress ,whereDidYouHearRef, " +
+      "whereDidYouHearOther ,whereDidYouHearMagazine, memberContactId " +
+      ") VALUES " +
+      "( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
+
+  private static String UPDATE_MEMBERCONTACT_SQL =
+      "UPDATE MEMBERCONTACTS SET " +
+      "lastUpdatedDate=CURRENT_TIMESTAMP, name=?, nameFirstLetter=?, statusRef=?, statusOther=?, primaryCategoryRef=?, primaryDisciplineRef=?, secondaryCategoryRef=?, " +
+      "secondaryDisciplineRef=?, tertiaryCategoryRef=?, tertiaryDisciplineRef=?, sizeRef=?, countryRef=?, regionRef=?, " +
+      "address1=?, address2=?, city=?, postcode=?, countyRef=?, contactTitleRef=?, contactFirstName=?, " +
+      "contactSurname=?, telephone=?, mobile=?, fax=?, webaddress=?, whereDidYouHearRef=?, " +
+      "whereDidYouHearOther=?, whereDidYouHearMagazine=? " +
+      "WHERE memberContactId=? ";
+
+  private static String INSERT_MEMBERPROFILE_SQL =
+      "INSERT INTO MEMBERPROFILES ( " +
+      "personalStatement ,specialisations ,keywords, memberProfileId " +
+      ") VALUES " +
+      "( ?, ?, ?, ? )";
+
+  private static String UPDATE_MEMBERPROFILE_SQL =
+      "UPDATE MEMBERPROFILES SET " +
+      "lastUpdatedDate=CURRENT_TIMESTAMP, personalStatement=?, specialisations=?, keywords=? " +
+      "WHERE memberProfileId=? ";
+
+  private static String INSERT_MEMBER_SQL =
+      "INSERT INTO MEMBERS ( " +
+      "memberContactId, memberProfileID, moderationMemberContactId, moderationMemberProfileId, " +
+      "email, passwd, profileURL, lastPaymentDate, goLiveDate, expiryDate, onModerationHold, emailValidated, validationKey " +
+      ") VALUES " +
+      "( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
+
+  private static String UPDATE_MEMBER_SQL =
+      "UPDATE MEMBERS SET " +
+      "passwd=?, profileURL=?, email=? ";
+  //none of the other fields are allowed to change.
+
+  private static String SELECT_ONLY_MEMBER_ONLY_SQL =
+      "SELECT " +
+      "m.memberId, m.memberContactId, m.memberProfileId, m.moderationMemberContactId, m.moderationMemberProfileId, m.placedAdvert, " +
+      "m.email, m.passwd, m.profileURL, m.regDate, m.lastPaymentDate, m.goLiveDate, m.expiryDate, m.onModerationHold, m.wentOnHoldDate, m.emailValidated, m.validationKey ";
+
+  private static String FROM_ONLY_MEMBER_ONLY_SQL =
+      "FROM MEMBERS m ";
+
+  private static String SELECT_FULLMEMBER_SQL =
+      SELECT_ONLY_MEMBER_ONLY_SQL +
+      ", " +
+      "mc.lastUpdatedDate mc_lastUpdatedDate, mc.name mc_name, mc.statusRef mc_statusRef, mc.statusOther mc_statusOther, mc.primaryCategoryRef mc_primaryCategoryRef, mc.primaryDisciplineRef mc_primaryDisciplineRef, mc.secondaryCategoryRef mc_secondaryCategoryRef, " +
+      "mc.secondaryDisciplineRef mc_secondaryDisciplineRef, mc.tertiaryCategoryRef mc_tertiaryCategoryRef, mc.tertiaryDisciplineRef mc_tertiaryDisciplineRef, mc.sizeRef mc_sizeRef, mc.countryRef mc_countryRef, mc.regionRef mc_regionRef, " +
+      "mc.address1 mc_address1, mc.address2 mc_address2, mc.city mc_city, mc.postcode mc_postcode, mc.countyRef mc_countyRef, mc.contactTitleRef mc_contactTitleRef, mc.contactFirstName mc_contactFirstName, " +
+      "mc.contactSurname mc_contactSurname, mc.telephone mc_telephone, mc.mobile mc_mobile, mc.fax mc_fax,mc.webaddress mc_webaddress, mc.whereDidYouHearRef mc_whereDidYouHearRef, " +
+      "mc.whereDidYouHearOther mc_whereDidYouHearOther, mc.whereDidYouHearMagazine mc_whereDidYouHearMagazine " +
+      ", " +
+      "mmc.lastUpdatedDate mmc_lastUpdatedDate, mmc.name mmc_name, mmc.statusRef mmc_statusRef, mmc.statusOther mmc_statusOther, mmc.primaryCategoryRef mmc_primaryCategoryRef, mmc.primaryDisciplineRef mmc_primaryDisciplineRef, mmc.secondaryCategoryRef mmc_secondaryCategoryRef, " +
+      "mmc.secondaryDisciplineRef mmc_secondaryDisciplineRef, mmc.tertiaryCategoryRef mmc_tertiaryCategoryRef, mmc.tertiaryDisciplineRef mmc_tertiaryDisciplineRef, mmc.sizeRef mmc_sizeRef, mmc.countryRef mmc_countryRef, mmc.regionRef mmc_regionRef, " +
+      "mmc.address1 mmc_address1, mmc.address2 mmc_address2, mmc.city mmc_city, mmc.postcode mmc_postcode, mmc.countyRef mmc_countyRef, mmc.contactTitleRef mmc_contactTitleRef, mmc.contactFirstName mmc_contactFirstName, " +
+      "mmc.contactSurname mmc_contactSurname, mmc.telephone mmc_telephone, mmc.mobile mmc_mobile, mmc.fax mmc_fax,mmc.webaddress mmc_webaddress, mmc.whereDidYouHearRef mmc_whereDidYouHearRef, " +
+      "mmc.whereDidYouHearOther mmc_whereDidYouHearOther, mmc.whereDidYouHearMagazine mmc_whereDidYouHearMagazine " +
+      ", " +
+      "mp.lastUpdatedDate mp_lastUpdatedDate, mp.personalStatement mp_personalStatement, mp.specialisations mp_specialisations, mp.keywords mp_keywords " +
+      ", " +
+      "mmp.lastUpdatedDate mmp_lastUpdatedDate, mmp.personalStatement mmp_personalStatement, mmp.specialisations mmp_specialisations, mmp.keywords mmp_keywords " +
+      "FROM MEMBERS m " +
+      "LEFT OUTER JOIN MEMBERCONTACTS mc ON ( m.memberContactId = mc.memberContactId ) " +
+      "LEFT OUTER JOIN MEMBERCONTACTS mmc ON ( m.moderationMemberContactId = mmc.memberContactId ) " +
+      "LEFT OUTER JOIN MEMBERPROFILES mp ON ( m.memberProfileId = mp.memberProfileId ) " +
+      "LEFT OUTER JOIN MEMBERPROFILES mmp ON ( m.moderationMemberProfileId = mmp.memberProfileId ) ";
+
+  private static String MEMBER_SEARCH_SQL =
+      "SELECT DISTINCT m.memberId, m.profileURL " +
+      ", " +
+      "mc.name ,mc.statusRef, mc.primaryCategoryRef ,mc.primaryDisciplineRef, mc.secondaryCategoryRef, " +
+      "mc.secondaryDisciplineRef,  mc.tertiaryCategoryRef, mc.tertiaryDisciplineRef ,mc.sizeRef ,mc.countryRef ,mc.regionRef, " +
+      "mc.city, mc.countyRef ,mc.contactTitleRef ,mc.contactFirstName, mc.contactSurname " +
+      "FROM members m " +
+      "INNER JOIN      memberContacts mc ON ( m.memberContactId = mc.memberContactId ) ";
+
+  private static String JOB_SEARCH_SQL =
+      "SELECT DISTINCT " +
+      "mj.memberJobId, mj.referenceNo, mj.title, mj.salary, mj.typeOfWorkRef, mj.countryRef ,mj.ukRegionRef, " +
+      "mj.telephone, mj.email, mj.contactName, mj.countyRef, mj.city, " +
+      "mj.description " +
+      "FROM memberJobs mj " +
+      "INNER JOIN members m ON ( mj.memberId = m.memberId ) ";
+
+  private static String FILE_SEARCH_SQL =
+      "SELECT DISTINCT " +
+      "m.memberId, mc.name , mf.memberFileId, mf.assetId, mf.description, mf.isImage, mf.fileByteSize, mf.mimeType " +
+      "FROM members m " +
+      "INNER JOIN memberContacts mc ON ( m.memberContactId = mc.memberContactId ) " +
+      "INNER JOIN memberFiles    mf ON ( m.memberId = mf.memberId ) ";
+
+  private static String INSERT_MEMBERFILE_SQL =
+      "INSERT INTO MEMBERFILES ( " +
+      "assetId ,description ,keywords, displayFileName, mimeType, fileByteSize, " +
+      "isImage, mainFile, portraitImage, forModeration, memberId, memberFileId " +
+      ") VALUES " +
+      "( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
+
+  private static String MEMBERFILE_COLS_SQL =
+      "mf.memberFileId, mf.memberId, mf.assetId, mf.description, mf.keywords, mf.displayFileName, " +
+      "mf.mimeType, mf.fileByteSize, mf.isImage, mf.mainFile, mf.portraitImage, mf.forModeration, mf.uploadDate ";
+
+  private static String SELECT_MEMBERFILE_SQL =
+      "SELECT " +
+      MEMBERFILE_COLS_SQL +
+      "FROM MEMBERFILES mf ";
+
+  private static String INSERT_MEMBERJOB_SQL =
+      "INSERT INTO MEMBERJOBS ( " +
+      "referenceNo ,title, mainCategoryRef, disciplineRef, typeOfWorkRef, " +
+      "salary, countryRef, ukRegionRef, countyRef, city, telephone, email, contactName, " +
+      "description, forModeration, moderatedJobId, memberId, memberJobId " +
+      ") VALUES " +
+      "( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
+
+  private static String UPDATE_MEMBERJOB_SQL =
+      "UPDATE MEMBERJOBS SET " +
+      "lastUpdatedDate = CURRENT_TIMESTAMP, referenceNo = ?,title = ?, mainCategoryRef = ?, disciplineRef = ?, typeOfWorkRef = ?, " +
+      "salary = ?, countryRef = ?, ukRegionRef = ?, countyRef = ?, city = ?, telephone = ?, email = ?, contactName  = ?, " +
+      "description = ?, forModeration = ?, moderatedJobId = ? " +
+      "WHERE memberId = ? AND memberJobId = ? ";
+  // memberid is just a check that user is updating their own job
+
+  private static String MEMBERJOB_COLS_SQL =
+      "mj.memberJobId mj_memberJobId, mj.memberId mj_memberId, mj.creationDate mj_creationDate, mj.lastUpdatedDate mj_lastUpdatedDate, " +
+      "mj.referenceNo mj_referenceNo, mj.title mj_title, mj.mainCategoryRef mj_mainCategoryRef, mj.disciplineRef mj_disciplineRef, mj.typeOfWorkRef mj_typeOfWorkRef, " +
+      "mj.salary mj_salary, mj.countryRef mj_countryRef, mj.ukRegionRef mj_ukRegionRef, mj.countyRef mj_countyRef, mj.city mj_city, mj.telephone mj_telephone, mj.email mj_email, mj.contactName mj_contactName, " +
+      "mj.description mj_description, mj.forModeration mj_forModeration, mj.moderatedJobId mj_moderatedJobId ";
+
+  private static String SELECT_MEMBERJOB_SQL =
+      "SELECT " +
+      MEMBERJOB_COLS_SQL +
+      "FROM MEMBERJOBS mj ";
+
+/**
+ * Constructor for the MemberSql object
+ */
+  public MemberSql()
+  {
+  }
+
+/**
+ * Sets the member file to be the main file and ensures all the other files attached ot that member are set as not main file. makes changes in both database and on object
+ *
+ * @param member                member object to update
+ * @param mainFileId            id of member file to set as main
+ * @exception ServletException  thrown if database exception
+ */
+  public static void setMainFile( Member member, int mainFileId ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //update password in database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      ps = conn.prepareStatement( "UPDATE MEMBERFILES SET mainFile='f' WHERE memberId = ?" );
+      ps.setInt( 1, member.memberId );
+      ps.executeUpdate();
+      ps.close();
+
+      ps = conn.prepareStatement( "UPDATE MEMBERFILES SET mainFile='t' WHERE memberFileId = ? AND memberId = ?" );
+      ps.setInt( 1, mainFileId );
+      ps.setInt( 2, member.memberId );
+      //not needed but acts as an extra security feature!!
+      ps.executeUpdate();
+      ps.close();
+
+      //now update mainFile info on member
+
+      if( member.mainFile != null )
+      {
+        member.mainFile.mainFile = false;
+      }
+
+      member.mainFile = member.getMemberFileById( mainFileId );
+      member.mainFile.mainFile = true;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Sets the MemberOfWeek attribute of the MemberSql class
+ *
+ * @param memberWeek            The new MemberOfWeek value
+ * @param memberId              The new MemberOfWeek value
+ * @param description           The new MemberOfWeek value
+ * @exception ServletException  thrown if database exception
+ */
+  public static void setMemberOfWeek( String memberWeek, int memberId, String description ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //add or update the record in the database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+
+      //delete any old member week stuff
+      ps = conn.prepareStatement( "DELETE FROM memberOfWeek WHERE weekDescriptor = ? " );
+      ps.setString( 1, memberWeek );
+      ps.executeUpdate();
+
+      //generate unique id for object.
+      ps = conn.prepareStatement( "INSERT INTO memberOfWeek ( weekDescriptor, memberId, description ) VALUES ( ?, ?, ? ) " );
+      ps.setString( 1, memberWeek );
+      ps.setInt( 2, memberId );
+      PreparedStatementUtils.set( ps, 3, description, 100 );
+      ps.executeUpdate();
+
+      ps.close();
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Sets the MemberOnlyValues attribute of the MemberSql class
+ *
+ * @param ps                The new MemberOnlyValues value
+ * @param member            The new MemberOnlyValues value
+ * @exception SQLException  thrown if database exception
+ */
+  public static void setMemberOnlyValues( PreparedStatement ps, Member member ) throws SQLException
+  {
+    PreparedStatementUtils.set( ps, 1, ( member.memberContact == null ) ? -1 : member.memberContact.memberContactId );
+    PreparedStatementUtils.set( ps, 2, ( member.memberProfile == null ) ? -1 : member.memberProfile.memberProfileId );
+    PreparedStatementUtils.set( ps, 3, ( member.moderationMemberContact == null ) ? -1 : member.moderationMemberContact.memberContactId );
+    PreparedStatementUtils.set( ps, 4, ( member.moderationMemberProfile == null ) ? -1 : member.moderationMemberProfile.memberProfileId );
+    PreparedStatementUtils.set( ps, 5, member.email.trim() );
+    PreparedStatementUtils.set( ps, 6, member.passwd.trim() );
+    PreparedStatementUtils.set( ps, 7, member.profileURL.trim() );
+    PreparedStatementUtils.set( ps, 8, member.lastPaymentDate );
+    PreparedStatementUtils.set( ps, 9, member.goLiveDate );
+    PreparedStatementUtils.set( ps, 10, member.expiryDate );
+    PreparedStatementUtils.set( ps, 11, member.onModerationHold );
+    PreparedStatementUtils.set( ps, 12, member.emailValidated );
+    PreparedStatementUtils.set( ps, 13, member.validationKey );
+  }
+
+/**
+ * Sets the MemberContactValues attribute of the MemberSql class
+ *
+ * @param ps                The new MemberContactValues value
+ * @param memberContact     The new MemberContactValues value
+ * @exception SQLException  thrown if database exception
+ */
+  public static void setMemberContactValues( PreparedStatement ps, MemberContact memberContact ) throws SQLException
+  {
+    PreparedStatementUtils.set( ps, 1, memberContact.name );
+    char nameFirstLetterChar = memberContact.name.toUpperCase().charAt( 0 );
+    String nameFirstLetterString;
+
+    if( nameFirstLetterChar >= 'A' && nameFirstLetterChar <= 'Z' )
+    {
+      nameFirstLetterString = String.valueOf( nameFirstLetterChar );
+    }
+    else if( nameFirstLetterChar >= '0' && nameFirstLetterChar <= '9' )
+    {
+      nameFirstLetterString = "0";
+    }
+    else
+    {
+      nameFirstLetterString = "_";
+    }
+
+    PreparedStatementUtils.set( ps, 2, nameFirstLetterString );
+    PreparedStatementUtils.set( ps, 3, memberContact.statusRef );
+    PreparedStatementUtils.set( ps, 4, memberContact.statusOther );
+    PreparedStatementUtils.set( ps, 5, memberContact.primaryCategoryRef );
+    PreparedStatementUtils.set( ps, 6, memberContact.primaryDisciplineRef );
+    PreparedStatementUtils.set( ps, 7, memberContact.secondaryCategoryRef );
+    PreparedStatementUtils.set( ps, 8, memberContact.secondaryDisciplineRef );
+    PreparedStatementUtils.set( ps, 9, memberContact.tertiaryCategoryRef );
+    PreparedStatementUtils.set( ps, 10, memberContact.tertiaryDisciplineRef );
+    PreparedStatementUtils.set( ps, 11, memberContact.sizeRef );
+    PreparedStatementUtils.set( ps, 12, memberContact.countryRef );
+    PreparedStatementUtils.set( ps, 13, memberContact.regionRef );
+    PreparedStatementUtils.set( ps, 14, memberContact.address1 );
+    PreparedStatementUtils.set( ps, 15, memberContact.address2 );
+    PreparedStatementUtils.set( ps, 16, memberContact.city );
+    PreparedStatementUtils.set( ps, 17, memberContact.postcode );
+    PreparedStatementUtils.set( ps, 18, memberContact.countyRef );
+    PreparedStatementUtils.set( ps, 19, memberContact.contactTitleRef );
+    PreparedStatementUtils.set( ps, 20, memberContact.contactFirstName );
+    PreparedStatementUtils.set( ps, 21, memberContact.contactSurname );
+    PreparedStatementUtils.set( ps, 22, memberContact.telephone );
+    PreparedStatementUtils.set( ps, 23, memberContact.mobile );
+    PreparedStatementUtils.set( ps, 24, memberContact.fax );
+    PreparedStatementUtils.set( ps, 25, memberContact.webAddress );
+    PreparedStatementUtils.set( ps, 26, memberContact.whereDidYouHearRef );
+    PreparedStatementUtils.set( ps, 27, memberContact.whereDidYouHearOther );
+    PreparedStatementUtils.set( ps, 28, memberContact.whereDidYouHearMagazine );
+    PreparedStatementUtils.set( ps, 29, memberContact.memberContactId );
+  }
+
+/**
+ * Sets the MemberProfileValues attribute of the MemberSql class
+ *
+ * @param ps                The new MemberProfileValues value
+ * @param memberProfile     The new MemberProfileValues value
+ * @exception SQLException  thrown if database exception
+ */
+  public static void setMemberProfileValues( PreparedStatement ps, MemberProfile memberProfile ) throws SQLException
+  {
+    PreparedStatementUtils.set( ps, 1, memberProfile.personalStatement, 2000 );
+    PreparedStatementUtils.set( ps, 2, memberProfile.specialisations, 2000 );
+    PreparedStatementUtils.set( ps, 3, memberProfile.keywords, 2000 );
+    PreparedStatementUtils.set( ps, 4, memberProfile.memberProfileId );
+  }
+
+/**
+ * Sets the MemberFileValues attribute of the MemberSql class
+ *
+ * @param ps                The new MemberFileValues value
+ * @param memberFile        The new MemberFileValues value
+ * @exception SQLException  thrown if database exception
+ */
+  public static void setMemberFileValues( PreparedStatement ps, MemberFile memberFile ) throws SQLException
+  {
+    PreparedStatementUtils.set( ps, 1, memberFile.assetId );
+    PreparedStatementUtils.set( ps, 2, memberFile.description );
+    PreparedStatementUtils.set( ps, 3, memberFile.keywords );
+    PreparedStatementUtils.set( ps, 4, memberFile.displayFileName );
+    PreparedStatementUtils.set( ps, 5, memberFile.mimeType );
+    PreparedStatementUtils.set( ps, 6, memberFile.fileByteSize );
+    PreparedStatementUtils.set( ps, 7, memberFile.isImage );
+    PreparedStatementUtils.set( ps, 8, memberFile.mainFile );
+    PreparedStatementUtils.set( ps, 9, memberFile.portraitImage );
+    PreparedStatementUtils.set( ps, 10, memberFile.forModeration );
+  }
+
+/**
+ * Sets the MemberJobValues attribute of the MemberSql class
+ *
+ * @param ps                The new MemberJobValues value
+ * @param memberJob         The new MemberJobValues value
+ * @exception SQLException  thrown if database exception
+ */
+  public static void setMemberJobValues( PreparedStatement ps, MemberJob memberJob ) throws SQLException
+  {
+    PreparedStatementUtils.set( ps, 1, memberJob.referenceNo, 100 );
+    PreparedStatementUtils.set( ps, 2, memberJob.title );
+    PreparedStatementUtils.set( ps, 3, memberJob.mainCategoryRef );
+    PreparedStatementUtils.set( ps, 4, memberJob.disciplineRef );
+    PreparedStatementUtils.set( ps, 5, memberJob.typeOfWorkRef );
+    PreparedStatementUtils.set( ps, 6, memberJob.salary );
+    PreparedStatementUtils.set( ps, 7, memberJob.countryRef );
+    PreparedStatementUtils.set( ps, 8, memberJob.ukRegionRef );
+    PreparedStatementUtils.set( ps, 9, memberJob.countyRef );
+    PreparedStatementUtils.set( ps, 10, memberJob.city );
+    PreparedStatementUtils.set( ps, 11, memberJob.telephone );
+    PreparedStatementUtils.set( ps, 12, memberJob.email );
+    PreparedStatementUtils.set( ps, 13, memberJob.contactName );
+    PreparedStatementUtils.set( ps, 14, memberJob.description, 2000 );
+    PreparedStatementUtils.set( ps, 15, memberJob.forModeration );
+    PreparedStatementUtils.set( ps, 16, memberJob.moderatedJobId );
+  }
+
+/**
+ * Gets the MembershipDurationInMillis attribute of the MemberSql class
+ *
+ * @return   The MembershipDurationInMillis value
+ */
+  public static long getMembershipDurationInMillis()
+  {
+    PropertyFile dataDictionary = PropertyFile.getDataDictionary();
+    long durationInMonths = (long)( dataDictionary.getInt( "membership.durationInMonths" ) );
+    return 1000l * 60l * 60l * 24l * 365l * durationInMonths / 12l;
+  }
+
+////////////////////////////////////////////////// END OF MEMBER MODERATION ///////////////////////////////////////
+
+////////////////////////////////////////////////////// JOB SELECT /////////////////////////////////////////////
+
+/**
+ * Gets the MemberJob attribute of the MemberSql class
+ *
+ * @param memberJobId           Description of Parameter
+ * @return                      The MemberJob value
+ * @exception ServletException  thrown if database exception
+ */
+  public static MemberJob getMemberJob( int memberJobId ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //update password in database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      String sql = SELECT_MEMBERJOB_SQL + "WHERE memberJobId = ?";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberJobId );
+      ResultSet rs = ps.executeQuery();
+      MemberJob memberJob = null;
+
+      if( rs.next() )
+      {
+        memberJob = createMemberJob( rs, "mj_" );
+      }
+
+      //This is a total hack, the memberId for this job is actually placed in the moderatedJobId cos there's nowere else to put it, please don't shout at me.
+      memberJob.moderatedJobId = rs.getInt( "mj_memberId" );
+
+      rs.close();
+      ps.close();
+
+      return memberJob;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+////////////////////////////////////////////////////// END OF JOB SELECT /////////////////////////////////////////////
+
+////////////////////////////////////////////////////// JOB MODERATION /////////////////////////////////////////
+
+/**
+ * Gets the JobsForModeration attribute of the MemberSql class
+ *
+ * @return                      The JobsForModeration value
+ * @exception ServletException  thrown if database exception
+ */
+  public static ArrayList getJobsForModeration() throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //update password in database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      String sql =
+          SELECT_ONLY_MEMBER_ONLY_SQL + ", " +
+          StringUtils.replace( StringUtils.replace( MEMBERJOB_COLS_SQL, "mj\\.", "mmj." ), "mj_", "mmj_" ) + ", " +
+          MEMBERJOB_COLS_SQL +
+          "FROM MEMBERS m " +
+          "INNER JOIN MEMBERJOBS mmj ON ( m.memberId = mmj.memberId AND mmj.forModeration = 't' ) " +
+          "LEFT OUTER JOIN MEMBERJOBS mj ON ( mmj.moderatedJobId = mj.memberJobId ) " +
+          "ORDER BY m.onModerationHold ASC, m.lastPaymentDate DESC, m.memberId ASC, mmj.lastUpdatedDate DESC";
+      //order by the members first, then get the jobs in order, we split them into new and existing in the java code below
+
+      ps = conn.prepareStatement( sql );
+      ResultSet rs = ps.executeQuery();
+      Member member = null;
+      ArrayList members = new ArrayList();
+      ArrayList jobsNotLive = null;
+      ArrayList jobsLive = null;
+      MemberJob[] tmpJobArray = null;
+
+      while( rs.next() )
+      {
+        if( member != null && member.memberId != rs.getInt( "memberId" ) )
+        {
+          jobsNotLive.addAll( jobsLive );
+          member.memberJobs = jobsNotLive;
+        }
+
+        if( member == null || member.memberId != rs.getInt( "memberId" ) )
+        {
+          //new pointer gets created here.
+          member = createMember( rs );
+          members.add( member );
+          jobsNotLive = new ArrayList();
+          jobsLive = new ArrayList();
+        }
+
+        //now add jobs to jobs array
+        tmpJobArray = new MemberJob[2];
+        tmpJobArray[1] = createMemberJob( rs, "mmj_" );
+
+        if( rs.getString( "mj_memberJobId" ) != null )
+        {
+          tmpJobArray[0] = createMemberJob( rs, "mj_" );
+          jobsLive.add( tmpJobArray );
+        }
+        else
+        {
+          tmpJobArray[0] = null;
+          jobsNotLive.add( tmpJobArray );
+        }
+      }
+
+      if( member != null )
+      {
+        //complete last member object if there was one
+        jobsNotLive.addAll( jobsLive );
+        member.memberJobs = jobsNotLive;
+      }
+
+      //return nearly sorted list of members, with each member having a sorted list of jobs, phew!
+
+      return members;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/////////////////////////////////////////// END OF JOB SAVE/LOAD /////////////////////////////////////////////////////////
+
+////////////////////////////////////////////// FILE MODERATION //////////////////////////////////////////////////////////
+
+/**
+ * Gets the FilesForModeration attribute of the MemberSql class
+ *
+ * @return                      The FilesForModeration value
+ * @exception ServletException  thrown if database exception
+ */
+  public static ArrayList getFilesForModeration() throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //update password in database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      String sql =
+          SELECT_ONLY_MEMBER_ONLY_SQL + ", " +
+          MEMBERFILE_COLS_SQL +
+          "FROM MEMBERS m " +
+          "INNER JOIN MEMBERFILES mf ON ( m.memberId = mf.memberId AND mf.forModeration = 't' ) " +
+          "ORDER BY m.onModerationHold ASC, m.lastPaymentDate DESC, m.memberId ASC, mf.uploadDate DESC";
+      //order by the members first, then get the files in order
+
+      ps = conn.prepareStatement( sql );
+      ResultSet rs = ps.executeQuery();
+      Member member = null;
+      ArrayList members = new ArrayList();
+      ArrayList modMemberFiles = new ArrayList();
+
+      while( rs.next() )
+      {
+        if( member != null && member.memberId != rs.getInt( "memberId" ) )
+        {
+          member.moderationMemberFiles = modMemberFiles;
+        }
+
+        if( member == null || member.memberId != rs.getInt( "memberId" ) )
+        {
+          //new pointer gets created here.
+          member = createMember( rs );
+          members.add( member );
+          modMemberFiles = new ArrayList();
+        }
+
+        modMemberFiles.add( createMemberFile( rs ) );
+      }
+
+      //complete last member object (if there were any)
+      if( member != null )
+      {
+        member.moderationMemberFiles = modMemberFiles;
+      }
+
+      //return nearly sorted list of members, with each member having a sorted list of files, phew!
+
+      return members;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Gets the MemberOfWeekId attribute of the MemberSql class
+ *
+ * @return                      The MemberOfWeekId value
+ * @exception ServletException  thrown if database exception
+ */
+  public static int getMemberOfWeekId() throws ServletException
+  {
+    return getMemberOfWeekId( new Date() );
+  }
+
+/**
+ * Gets the MemberOfWeekId attribute of the MemberSql class
+ *
+ * @param now                   Description of Parameter
+ * @return                      The MemberOfWeekId value
+ * @exception ServletException  thrown if database exception
+ */
+  public static int getMemberOfWeekId( Date now ) throws ServletException
+  {
+    Connection conn = null;
+    try
+    {
+      //add or update the record in the database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+
+      String weekDescriptor = Member.getDateDescriptor( Member.getWeekEnd( now ) );
+
+      //generate unique id for object.
+      ps = conn.prepareStatement( "SELECT memberId FROM memberOfWeek WHERE weekDescriptor <= ? ORDER BY weekDescriptor DESC " );
+      ps.setString( 1, weekDescriptor );
+      ResultSet rs = ps.executeQuery();
+      int memberId = -1;
+      if( rs.next() )
+      {
+        memberId = rs.getInt( "memberId" );
+      }
+      rs.close();
+      ps.close();
+      return memberId;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+///////////////////////////////////////////// MEMBER ADMIN ////////////////////////////////////////////////
+
+/**
+ * Description of the Method
+ *
+ * @param memberId              Description of Parameter
+ * @param validationKey         Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static boolean validateEmailAddress( int memberId, int validationKey ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      boolean[] uniqueResults = new boolean[2];
+      uniqueResults[0] = true;
+      uniqueResults[1] = true;
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = conn.prepareStatement( "UPDATE MEMBERS SET emailValidated = ? WHERE memberId = ? AND validationKey = ? " );
+      PreparedStatementUtils.set( ps, 1, true );
+      PreparedStatementUtils.set( ps, 2, memberId );
+      PreparedStatementUtils.set( ps, 3, validationKey );
+      int rows = ps.executeUpdate();
+      ps.close();
+
+      return rows == 1;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param member                Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void checkIfValidatedYet( Member member ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      boolean[] uniqueResults = new boolean[2];
+      uniqueResults[0] = true;
+      uniqueResults[1] = true;
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = conn.prepareStatement( "SELECT emailValidated FROM MEMBERS WHERE memberId = ?" );
+      PreparedStatementUtils.set( ps, 1, member.memberId );
+      ResultSet rs = ps.executeQuery();
+
+      if( rs.next() && BooleanUtils.isTrue( rs.getString( "emailValidated" ) ) )
+      {
+        member.emailValidated = true;
+      }
+
+      rs.close();
+      ps.close();
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param memberId              Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void deleteMember( int memberId ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = conn.prepareStatement( "DELETE FROM MEMBERS WHERE memberId = ?" );
+      PreparedStatementUtils.set( ps, 1, memberId );
+      ps.executeUpdate();
+      //all stuff hanging off members are deleted by referential constraints, all stuff that members are hanging off (ie membercontacts and memberprofiles) are deleted by triggers, good eh?
+      ps.close();
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+  //checks whether user has unique email and profileurl when registering
+/**
+ * Description of the Method
+ *
+ * @param email                 Description of Parameter
+ * @param profileURL            Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static boolean[] checkUniqueFields( String email, String profileURL ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      boolean[] uniqueResults = new boolean[2];
+      uniqueResults[0] = true;
+      uniqueResults[1] = true;
+      email = email.trim().toUpperCase();
+      profileURL = profileURL.trim().toUpperCase();
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = conn.prepareStatement( "SELECT UPPER( email ) email, UPPER( profileURL ) profileURL FROM MEMBERS WHERE UPPER( email ) = ? OR UPPER( profileURL ) = ?" );
+      ps.setString( 1, email );
+      ps.setString( 2, profileURL );
+      ResultSet rs = ps.executeQuery();
+
+      while( rs.next() )
+      {
+        if( email.equals( rs.getString( "email" ) ) )
+        {
+          uniqueResults[0] = false;
+        }
+
+        if( profileURL.equals( rs.getString( "profileURL" ) ) )
+        {
+          uniqueResults[1] = false;
+        }
+      }
+
+      rs.close();
+      ps.close();
+
+      return uniqueResults;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param member                Description of Parameter
+ * @param isAdvertiser          Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void markMemberAsAdvertiser( Member member, boolean isAdvertiser ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //add or update the record in the database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      ps = conn.prepareStatement( "UPDATE MEMBERS SET placedAdvert=? WHERE memberId=?" );
+      PreparedStatementUtils.set( ps, 1, isAdvertiser );
+      PreparedStatementUtils.set( ps, 2, member.memberId );
+      ps.executeUpdate();
+      member.placedAdvert = isAdvertiser;
+
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param member                Description of Parameter
+ * @param passwd                Description of Parameter
+ * @param profileUrl            Description of Parameter
+ * @param email                 Description of Parameter
+ * @param resetEmailValidated   Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void changePasswordAndEmailAndProfileUrl( Member member, String passwd, String profileUrl, String email, boolean resetEmailValidated ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //update password in database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      ps = conn.prepareStatement( UPDATE_MEMBER_SQL + ( resetEmailValidated ? ", emailValidated = 'f' " : " " ) + "WHERE memberId=? " );
+      ps.setString( 1, passwd );
+      ps.setString( 2, profileUrl );
+      ps.setString( 3, email );
+      ps.setInt( 4, member.memberId );
+      ps.executeUpdate();
+      ps.close();
+
+      //now change password of member object
+      member.passwd = passwd;
+      member.profileURL = profileUrl;
+      member.email = email;
+
+      if( resetEmailValidated )
+      {
+        member.emailValidated = false;
+      }
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/////////////////////////////////////////////// END OF MEMBER ADMIN ///////////////////////////////////////////////
+
+////////////////////////////////////////////////// MEMBER SAVE/LOAD ///////////////////////////////////////////////////
+
+/**
+ * Description of the Method
+ *
+ * @param member                Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void saveNewMemberOnlyDetails( Member member ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //save
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = conn.prepareStatement( INSERT_MEMBER_SQL );
+      setMemberOnlyValues( ps, member );
+      int rows = ps.executeUpdate();
+
+      //now retrieve info generated on save
+      ps = conn.prepareStatement( "SELECT memberId, regDate FROM MEMBERS WHERE UPPER( email ) = ? AND UPPER( profileURL ) = ?" );
+      ps.setString( 1, member.email.trim().toUpperCase() );
+      ps.setString( 2, member.profileURL.trim().toUpperCase() );
+      ResultSet rs = ps.executeQuery();
+
+      if( rs.next() )
+      {
+        member.memberId = rs.getInt( "memberId" );
+        member.regDate = rs.getTimestamp( "regDate" );
+      }
+
+      rs.close();
+      ps.close();
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param email                 Description of Parameter
+ * @param passwd                Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static Member loadFullMember( String email, String passwd ) throws ServletException
+  {
+    ArrayList mems = loadFullMembers( email, passwd, -1, null, false, null, null, null, null, false, true, true );
+
+    if( mems.size() == 0 )
+    {
+      return null;
+    }
+
+    return (Member)mems.get( 0 );
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param profileURL            Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static Member loadFullMember( String profileURL ) throws ServletException
+  {
+    ArrayList mems = loadFullMembers( null, null, -1, profileURL, false, null, null, null, null, false, true, true );
+
+    if( mems.size() == 0 )
+    {
+      return null;
+    }
+
+    return (Member)mems.get( 0 );
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param memberId              Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static Member loadFullMember( int memberId ) throws ServletException
+  {
+    return (Member)loadFullMembers( null, null, memberId, null, false, null, null, null, null, false, true, true ).get( 0 );
+  }
+
+/**
+ * Description of the Method
+ *
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static ArrayList loadMembersRequiringModeration() throws ServletException
+  {
+    return loadFullMembers( null, null, -1, null, true, null, null, null, null, false, false, false );
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param registeredAfter       Description of Parameter
+ * @param registeredBefore      Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static ArrayList loadUpdaidMembersForCron( Date registeredAfter, Date registeredBefore ) throws ServletException
+  {
+    return loadFullMembers( null, null, -1, null, false, registeredAfter, registeredBefore, null, null, true, ( ( registeredBefore == null ) ? true : false ), false );
+    // the conditional true/false is for when we are finding members to delete, so we want to add file info so all files can be deleted
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param expiresAfter          Description of Parameter
+ * @param expiresBefore         Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static ArrayList loadAboutToExpireMembersForCron( Date expiresAfter, Date expiresBefore ) throws ServletException
+  {
+    return loadFullMembers( null, null, -1, null, false, null, null, expiresAfter, expiresBefore, false, false, false );
+    //the conditional true/false is for when we are finding members to delete, so we want to add file info so all files can be deleted
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param members               Description of Parameter
+ * @param startIdx              Description of Parameter
+ * @param endIdx                Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void populateMemberFiles( ArrayList members, int startIdx, int endIdx ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      if( members == null || members.size() == 0 )
+      {
+        return;
+      }
+
+      String inList = "( ";
+      Member tempMember;
+
+      for( int i = startIdx; i < members.size() && i < endIdx; i++ )
+      {
+        tempMember = (Member)members.get( i );
+
+        if( tempMember.memberFiles == null || tempMember.memberFiles.size() == ( 0 ) )
+        {
+          inList += ( i == startIdx ? "" : ", " ) + ( (Member)members.get( i ) ).memberId;
+        }
+      }
+
+      inList += " )";
+
+      if( inList.equals( "(  )" ) )
+      {
+        return;
+      }
+
+      //create sql statement
+      conn = DatabaseUtils.getDatabaseConnection();
+      String sql = "SELECT memberFileId, memberId, assetId, isImage, mainFile, portraitImage, mimeType FROM MEMBERFILES WHERE memberId IN " + inList + " AND forModeration='f' ORDER BY memberId ASC, portraitImage DESC, mainFile DESC, isImage DESC";
+      PreparedStatement ps = conn.prepareStatement( sql );
+      ResultSet rs = ps.executeQuery();
+
+      Member currentMember = null;
+      int lastMemberId = -1;
+      int currentMemberId;
+      MemberFile tempFile;
+
+      while( rs.next() )
+      {
+        currentMemberId = rs.getInt( "memberId" );
+
+        if( currentMemberId != lastMemberId )
+        {
+          for( int i = startIdx; i < members.size() && i < endIdx; i++ )
+          {
+            if( currentMemberId == ( (Member)members.get( i ) ).memberId )
+            {
+              currentMember = ( (Member)members.get( i ) );
+              break;
+            }
+          }
+
+          lastMemberId = currentMember.memberId;
+        }
+
+        tempFile = new MemberFile( rs.getInt( "memberFileId" ), rs.getInt( "assetId" ), BooleanUtils.parseBoolean( rs.getString( "isImage" ) ), BooleanUtils.parseBoolean( rs.getString( "mainFile" ) ), BooleanUtils.parseBoolean( rs.getString( "portraitImage" ) ), rs.getString( "mimeType" ) );
+        currentMember.memberFiles.add( tempFile );
+
+        if( tempFile.mainFile )
+        {
+          currentMember.mainFile = tempFile;
+        }
+
+        if( tempFile.portraitImage )
+        {
+          currentMember.portraitImage = tempFile;
+        }
+      }
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param statusRefIds          Description of Parameter
+ * @param compSizeVal           Description of Parameter
+ * @param categoryVal           Description of Parameter
+ * @param disciplineVal         Description of Parameter
+ * @param countryVal            Description of Parameter
+ * @param regionVal             Description of Parameter
+ * @param countyVal             Description of Parameter
+ * @param keyword               Description of Parameter
+ * @param nameFirstLetter       Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static ArrayList memberSearch( String statusRefIds,
+      int compSizeVal, int categoryVal, int disciplineVal, int countryVal, int regionVal, int countyVal,
+      String keyword, String nameFirstLetter ) throws ServletException
+  {
+    return memberSearch( statusRefIds,
+        compSizeVal, categoryVal, disciplineVal, countryVal, regionVal, countyVal,
+        keyword, nameFirstLetter, false );
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param statusRefIds          Description of Parameter
+ * @param compSizeVal           Description of Parameter
+ * @param categoryVal           Description of Parameter
+ * @param disciplineVal         Description of Parameter
+ * @param countryVal            Description of Parameter
+ * @param regionVal             Description of Parameter
+ * @param countyVal             Description of Parameter
+ * @param keyword               Description of Parameter
+ * @param nameFirstLetter       Description of Parameter
+ * @param returnAllResults      Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static ArrayList memberSearch( String statusRefIds,
+      int compSizeVal, int categoryVal, int disciplineVal, int countryVal, int regionVal, int countyVal,
+      String keyword, String nameFirstLetter, boolean returnAllResults ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //create sql statement
+      conn = DatabaseUtils.getDatabaseConnection();
+      String sqlSelect = MEMBER_SEARCH_SQL;
+
+      if( keyword.length() != 0 )
+      {
+        sqlSelect += "INNER JOIN MEMBERSEARCHWORDS msw ON ( m.memberId = msw.memberId ) ";
+      }
+
+//        sqlSelect += "AND mf.forModeration = ? AND mf.isImage = ? ";
+      sqlSelect += "WHERE m.expiryDate IS NOT NULL AND m.expiryDate > CURRENT_TIMESTAMP ";
+
+      if( statusRefIds != null )
+      {
+        sqlSelect += "AND mc.statusRef IN ( " + statusRefIds + ") ";
+      }
+
+      ArrayList parameterVals = new ArrayList();
+
+      if( compSizeVal != -1 )
+      {
+        sqlSelect += "AND mc.sizeRef = ? ";
+        parameterVals.add( new Integer( compSizeVal ) );
+      }
+
+      if( categoryVal != -1 )
+      {
+        sqlSelect += "AND ( ( mc.primaryCategoryRef = ? ";
+        parameterVals.add( new Integer( categoryVal ) );
+
+        if( disciplineVal != -1 )
+        {
+          sqlSelect += "AND mc.primaryDisciplineRef = ? ";
+          parameterVals.add( new Integer( disciplineVal ) );
+        }
+
+        sqlSelect += ") ";
+        sqlSelect += "OR ( mc.secondaryCategoryRef = ? ";
+        parameterVals.add( new Integer( categoryVal ) );
+
+        if( disciplineVal != -1 )
+        {
+          sqlSelect += "AND mc.secondaryDisciplineRef = ? ";
+          parameterVals.add( new Integer( disciplineVal ) );
+        }
+
+        sqlSelect += ") ";
+        sqlSelect += "OR ( mc.tertiaryCategoryRef = ? ";
+        parameterVals.add( new Integer( categoryVal ) );
+
+        if( disciplineVal != -1 )
+        {
+          sqlSelect += "AND mc.tertiaryDisciplineRef = ? ";
+          parameterVals.add( new Integer( disciplineVal ) );
+        }
+
+        sqlSelect += ") ) ";
+      }
+
+      if( countryVal != -1 )
+      {
+        sqlSelect += "AND mc.countryRef = ? ";
+        parameterVals.add( new Integer( countryVal ) );
+      }
+
+      if( regionVal != -1 )
+      {
+        sqlSelect += "AND mc.regionRef = ? ";
+        parameterVals.add( new Integer( regionVal ) );
+        if( countyVal != -1 )
+        {
+          sqlSelect += "AND mc.countyRef = ? ";
+          parameterVals.add( new Integer( countyVal ) );
+        }
+      }
+
+      if( keyword.length() != 0 )
+      {
+        sqlSelect += "AND msw.searchword = ? ";
+      }
+
+      if( nameFirstLetter.length() != 0 )
+      {
+        sqlSelect += "AND mc.nameFirstLetter = ? ";
+      }
+
+      sqlSelect += " ORDER BY mc.name ASC, m.memberId DESC ";
+      //, mf.portraitImage DESC, mf.mainFile DESC, mf.isImage DESC, mf.uploadDate DESC";
+      PreparedStatement ps = conn.prepareStatement( sqlSelect );
+      //ps.setString( 1, "f" );   //for moderation
+      //ps.setString( 2, "t" );   //is image
+      int colNum = 1;
+
+      for( int i = 0; i < parameterVals.size(); i++ )
+      {
+        ps.setInt( colNum++, ( (Integer)parameterVals.get( i ) ).intValue() );
+      }
+
+      if( keyword.length() != 0 )
+      {
+        ps.setString( colNum++, keyword );
+      }
+
+      if( nameFirstLetter.length() != 0 )
+      {
+        ps.setString( colNum++, nameFirstLetter );
+      }
+
+      ResultSet rs = ps.executeQuery();
+
+      //now retrieve member object/s
+      PropertyFile dataDictionary = PropertyFile.getDataDictionary();
+      int maxNoOfSearchResults = NumberUtils.parseInt( dataDictionary.getString( "search.maxNoOfResults" ), -1 );
+
+      if( returnAllResults )
+      {
+        maxNoOfSearchResults = 5000;
+      }
+
+      ArrayList members = new ArrayList();
+      Member member = null;
+      int noOfFiles = 0;
+
+      while( rs.next() )
+      {
+        member = new Member( rs.getInt( "memberId" ) );
+        member.profileURL = StringUtils.nullString( rs.getString( "profileUrl" ) );
+        noOfFiles = 0;
+
+        member.memberContact = new MemberContact(
+            rs.getString( "name" ),
+            NumberUtils.parseInt( rs.getString( "statusRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "primaryCategoryRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "primaryDisciplineRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "secondaryCategoryRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "secondaryDisciplineRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "tertiaryCategoryRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "tertiaryDisciplineRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "sizeRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "countryRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "regionRef" ), -1 ),
+            rs.getString( "city" ),
+            NumberUtils.parseInt( rs.getString( "countyRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "contactTitleRef" ), -1 ),
+            rs.getString( "contactFirstName" ),
+            rs.getString( "contactSurname" )
+             );
+
+        members.add( member );
+
+        if( members.size() >= maxNoOfSearchResults )
+        {
+          break;
+        }
+      }
+
+      rs.close();
+      ps.close();
+
+      return members;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param jobTypeVal            Description of Parameter
+ * @param categoryVal           Description of Parameter
+ * @param disciplineVal         Description of Parameter
+ * @param countryVal            Description of Parameter
+ * @param regionVal             Description of Parameter
+ * @param countyVal             Description of Parameter
+ * @param keyword               Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static ArrayList memberJobSearch( int jobTypeVal, int categoryVal, int disciplineVal, int countryVal, int regionVal, int countyVal, String keyword ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //create sql statement
+      conn = DatabaseUtils.getDatabaseConnection();
+      String sqlSelect = JOB_SEARCH_SQL;
+
+      if( keyword.length() != 0 )
+      {
+        sqlSelect += "INNER JOIN MEMBERJOBSEARCHWORDS mjsw ON ( mj.memberJobId = mjsw.memberJobId ) ";
+      }
+
+      sqlSelect += "AND mj.forModeration = ? ";
+      sqlSelect += "AND m.expiryDate IS NOT NULL AND m.expiryDate > CURRENT_TIMESTAMP ";
+
+      ArrayList parameterVals = new ArrayList();
+
+      if( jobTypeVal != -1 )
+      {
+        sqlSelect += "AND mj.typeOfWorkRef = ? ";
+        parameterVals.add( new Integer( jobTypeVal ) );
+      }
+
+      if( categoryVal != -1 )
+      {
+        sqlSelect += "AND mj.mainCategoryRef = ? ";
+        parameterVals.add( new Integer( categoryVal ) );
+
+        if( disciplineVal != -1 )
+        {
+          sqlSelect += "AND mj.disciplineRef = ? ";
+          parameterVals.add( new Integer( disciplineVal ) );
+        }
+      }
+
+      if( countryVal != -1 )
+      {
+        sqlSelect += "AND mj.countryRef = ? ";
+        parameterVals.add( new Integer( countryVal ) );
+      }
+
+      if( regionVal != -1 )
+      {
+        sqlSelect += "AND mj.ukRegionRef = ? ";
+        parameterVals.add( new Integer( regionVal ) );
+
+        if( countyVal != -1 )
+        {
+          sqlSelect += "AND mj.countyRef = ? ";
+          parameterVals.add( new Integer( countyVal ) );
+        }
+      }
+
+      if( keyword.length() != 0 )
+      {
+        sqlSelect += "AND mjsw.searchword = ? ";
+      }
+
+      sqlSelect += " ORDER BY mj.title ASC, mj.memberJobId DESC ";
+      //, mf.portraitImage DESC, mf.mainFile DESC, mf.isImage DESC, mf.uploadDate DESC";
+      PreparedStatement ps = conn.prepareStatement( sqlSelect );
+      ps.setString( 1, "f" );
+      //for moderation
+      int colNum = 2;
+
+      for( int i = 0; i < parameterVals.size(); i++ )
+      {
+        ps.setInt( colNum++, ( (Integer)parameterVals.get( i ) ).intValue() );
+      }
+
+      if( keyword.length() != 0 )
+      {
+        ps.setString( colNum++, keyword );
+      }
+
+      ResultSet rs = ps.executeQuery();
+
+      //now retrieve member object/s
+      PropertyFile dataDictionary = PropertyFile.getDataDictionary();
+      int maxNoOfSearchResults = NumberUtils.parseInt( dataDictionary.getString( "search.jobs.maxNoOfResults" ), -1 );
+      ArrayList memberJobs = new ArrayList();
+      MemberJob memberJob = null;
+
+      while( rs.next() )
+      {
+        memberJob = new MemberJob(
+            rs.getInt( "memberJobId" ),
+            rs.getString( "referenceNo" ),
+            rs.getString( "title" ),
+            NumberUtils.parseInt( rs.getString( "typeOfWorkRef" ), -1 ),
+            rs.getString( "salary" ),
+            NumberUtils.parseInt( rs.getString( "countryRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "ukRegionRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "countyRef" ), -1 ),
+            rs.getString( "city" ),
+            rs.getString( "telephone" ),
+            rs.getString( "email" ),
+            rs.getString( "contactName" ),
+            rs.getString( "description" )
+             );
+
+        memberJobs.add( memberJob );
+
+        if( memberJobs.size() >= maxNoOfSearchResults )
+        {
+          break;
+        }
+      }
+
+      rs.close();
+      ps.close();
+
+      return memberJobs;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param isImage               Description of Parameter
+ * @param categoryVal           Description of Parameter
+ * @param disciplineVal         Description of Parameter
+ * @param keyword               Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static ArrayList memberFileSearch( String isImage, int categoryVal, int disciplineVal, String keyword ) throws ServletException
+  {
+    Connection conn = null;
+    try
+    {
+      //create sql statement
+      conn = DatabaseUtils.getDatabaseConnection();
+      String sqlSelect = FILE_SEARCH_SQL;
+
+      if( keyword.length() != 0 )
+      {
+        sqlSelect += "INNER JOIN MEMBERFILESEARCHWORDS mfsw ON ( mf.memberFileId = mfsw.memberFileId ) ";
+      }
+
+      sqlSelect += "WHERE mf.forModeration = ? ";
+      sqlSelect += "AND m.expiryDate IS NOT NULL AND m.expiryDate > CURRENT_TIMESTAMP ";
+
+      ArrayList parameterVals = new ArrayList();
+
+      if( categoryVal != -1 )
+      {
+        sqlSelect += "AND ( ( mc.primaryCategoryRef = ? ";
+        parameterVals.add( new Integer( categoryVal ) );
+
+        if( disciplineVal != -1 )
+        {
+          sqlSelect += "AND mc.primaryDisciplineRef = ? ";
+          parameterVals.add( new Integer( disciplineVal ) );
+        }
+
+        sqlSelect += ") ";
+        sqlSelect += "OR ( mc.secondaryCategoryRef = ? ";
+        parameterVals.add( new Integer( categoryVal ) );
+
+        if( disciplineVal != -1 )
+        {
+          sqlSelect += "AND mc.secondaryDisciplineRef = ? ";
+          parameterVals.add( new Integer( disciplineVal ) );
+        }
+
+        sqlSelect += ") ";
+        sqlSelect += "OR ( mc.tertiaryCategoryRef = ? ";
+        parameterVals.add( new Integer( categoryVal ) );
+
+        if( disciplineVal != -1 )
+        {
+          sqlSelect += "AND mc.tertiaryDisciplineRef = ? ";
+          parameterVals.add( new Integer( disciplineVal ) );
+        }
+
+        sqlSelect += ") ) ";
+      }
+
+      if( isImage != null )
+      {
+        sqlSelect += "AND mf.isImage = ? ";
+      }
+
+      if( keyword.length() != 0 )
+      {
+        sqlSelect += "AND mfsw.searchword = ? ";
+      }
+
+      sqlSelect += " ORDER BY mf.description ASC, mf.memberFileId DESC ";
+      //, mf.portraitImage DESC, mf.mainFile DESC, mf.isImage DESC, mf.uploadDate DESC";
+
+      PreparedStatement ps = conn.prepareStatement( sqlSelect );
+      ps.setMaxRows( 10 );
+      ps.setString( 1, "f" );
+      //for moderation
+      int colNum = 2;
+
+      for( int i = 0; i < parameterVals.size(); i++ )
+      {
+        ps.setInt( colNum++, ( (Integer)parameterVals.get( i ) ).intValue() );
+      }
+
+      if( isImage != null )
+      {
+        ps.setString( colNum++, isImage );
+      }
+
+      if( keyword.length() != 0 )
+      {
+        ps.setString( colNum++, keyword );
+      }
+
+      ResultSet rs = ps.executeQuery();
+
+      //now retrieve member object/s
+      PropertyFile dataDictionary = PropertyFile.getDataDictionary();
+      int maxNoOfSearchResults = NumberUtils.parseInt( dataDictionary.getString( "search.maxNoOfResults" ), -1 );
+      ArrayList members = new ArrayList();
+      Member member = null;
+      MemberFile memberFile = null;
+
+      while( rs.next() )
+      {
+        member = new Member( rs.getInt( "memberId" ) );
+        member.memberContact = new MemberContact();
+        member.memberContact.name = StringUtils.nullString( rs.getString( "name" ) );
+        memberFile = new MemberFile(
+            rs.getInt( "memberFileId" ),
+            rs.getInt( "assetId" ),
+            BooleanUtils.parseBoolean( rs.getString( "isImage" ) ),
+            false,
+            false,
+            StringUtils.nullString( rs.getString( "mimeType" ) )
+             );
+
+        memberFile.fileByteSize = (long)rs.getLong( "fileByteSize" );
+        memberFile.description = StringUtils.nullString( rs.getString( "description" ) );
+        member.memberFiles.add( memberFile );
+        members.add( member );
+
+        if( members.size() >= maxNoOfSearchResults )
+        {
+          break;
+        }
+      }
+
+      rs.close();
+      ps.close();
+
+      return members;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Adds a feature to the AndSaveMemberContactForModeraion attribute of the
+ * MemberSql class
+ *
+ * @param member                The feature to be added to the
+ *      AndSaveMemberContactForModeraion attribute
+ * @param memberContact         The feature to be added to the
+ *      AndSaveMemberContactForModeraion attribute
+ * @exception ServletException  thrown if database exception
+ */
+  public static void addAndSaveMemberContactForModeraion( Member member, MemberContact memberContact ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //add or update the record in the database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+
+      if( member.moderationMemberContact == null )
+      {
+        //generate unique id and timestamp for object.
+        ps = conn.prepareStatement( "SELECT GEN_ID( MEMBERCONTACTS_PKGEN, 1 ) id, CURRENT_TIMESTAMP now FROM GLOBALDATABASEVARIABLES" );
+        ResultSet rs = ps.executeQuery();
+        if( rs.next() )
+        {
+          memberContact.memberContactId = rs.getInt( "id" );
+          memberContact.lastUpdatedDate = rs.getDate( "now" );
+        }
+        //save
+        ps = conn.prepareStatement( INSERT_MEMBERCONTACT_SQL );
+        setMemberContactValues( ps, memberContact );
+        ps.executeUpdate();
+      }
+      else
+      {
+        ps = conn.prepareStatement( UPDATE_MEMBERCONTACT_SQL );
+        setMemberContactValues( ps, memberContact );
+        ps.executeUpdate();
+      }
+
+      //now add to original member and set the id on the member record in database
+      member.moderationMemberContact = memberContact;
+      setMemberFieldId( conn, ps, "moderationMemberContactId", member.memberId, memberContact.memberContactId );
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Adds a feature to the AndSaveMemberProfileForModeraion attribute of the
+ * MemberSql class
+ *
+ * @param member                The feature to be added to the
+ *      AndSaveMemberProfileForModeraion attribute
+ * @param memberProfile         The feature to be added to the
+ *      AndSaveMemberProfileForModeraion attribute
+ * @exception ServletException  thrown if database exception
+ */
+  public static void addAndSaveMemberProfileForModeraion( Member member, MemberProfile memberProfile ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //add or update the record in the database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+
+      if( member.moderationMemberProfile == null )
+      {
+        //generate unique id and timestamp for object.
+        ps = conn.prepareStatement( "SELECT GEN_ID( MEMBERPROFILES_PKGEN, 1 ) id, CURRENT_TIMESTAMP now FROM GLOBALDATABASEVARIABLES" );
+        ResultSet rs = ps.executeQuery();
+
+        if( rs.next() )
+        {
+          memberProfile.memberProfileId = rs.getInt( "id" );
+          memberProfile.lastUpdatedDate = rs.getDate( "now" );
+        }
+
+        //save
+        ps = conn.prepareStatement( INSERT_MEMBERPROFILE_SQL );
+        setMemberProfileValues( ps, memberProfile );
+        ps.executeUpdate();
+      }
+      else
+      {
+        ps = conn.prepareStatement( UPDATE_MEMBERPROFILE_SQL );
+        setMemberProfileValues( ps, memberProfile );
+        ps.executeUpdate();
+      }
+
+      //now add to original member and set the id on the member record in database
+      member.moderationMemberProfile = memberProfile;
+      setMemberFieldId( conn, ps, "moderationMemberProfileId", member.memberId, memberProfile.memberProfileId );
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+////////////////////////////////////////////////// END OF MEMBER SAVE/LOAD ///////////////////////////////////////
+
+//////////////////////////////////////////// MEMBER MODERATION //////////////////////////////////////////////
+
+/**
+ * Description of the Method
+ *
+ * @param memberId              Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void putMemberOnHold( int memberId ) throws ServletException
+  {
+    putOnHold( "MEMBERS", "memberId", memberId, true );
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param advertId              Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void putAdvertOnHold( int advertId ) throws ServletException
+  {
+    //i know this method should be in AdvertSql, but i'm cheating ok?
+
+    putOnHold( "ADVERTS", "advertId", advertId, true );
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param tableName             Description of Parameter
+ * @param idFieldName           Description of Parameter
+ * @param id                    Description of Parameter
+ * @param onHold                Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void putOnHold( String tableName, String idFieldName, int id, boolean onHold ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //update password in database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      String sql = "UPDATE " + tableName + " SET onModerationHold = '" + ( onHold ? "t" : "f" ) + "' WHERE " + idFieldName + " = " + id;
+      ps = conn.prepareStatement( sql );
+      ps.executeUpdate();
+      ps.close();
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param memberId              Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void moderateFailMemberDetails( int memberId ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+
+      //fetch member details
+      String sql = "SELECT memberContactId, memberProfileId, moderationMemberContactId, moderationMemberProfileId, lastPaymentDate FROM MEMBERS WHERE memberId = ?";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberId );
+      ResultSet rs = ps.executeQuery();
+      int oldModerationMemberContactId = -1;
+      int oldModerationMemberProfileId = -1;
+      int oldMemberContactId = -1;
+      int oldMemberProfileId = -1;
+      Date lastPaymentDate = null;
+
+      if( rs.next() )
+      {
+        oldMemberContactId = NumberUtils.parseInt( rs.getString( "memberContactId" ), -1 );
+        oldModerationMemberContactId = NumberUtils.parseInt( rs.getString( "moderationMemberContactId" ), -1 );
+        oldMemberProfileId = NumberUtils.parseInt( rs.getString( "memberProfileId" ), -1 );
+        oldModerationMemberProfileId = NumberUtils.parseInt( rs.getString( "moderationMemberProfileId" ), -1 );
+        lastPaymentDate = rs.getTimestamp( "lastPaymentDate" );
+      }
+      else
+      {
+        return;
+      }
+
+      //if the user has never been moderated and had not paid, then failing this user will result in their demise
+
+      if( lastPaymentDate == null && oldMemberContactId == -1 && oldMemberProfileId == -1 )
+      {
+        sql = "DELETE FROM MEMBERS WHERE memberId = ?";
+        ps = conn.prepareStatement( sql );
+        PreparedStatementUtils.set( ps, 1, memberId );
+      }
+      else
+      {
+        //now we must stamp on the moderated data
+        sql = "UPDATE MEMBERS SET moderationMemberContactId = ?, moderationMemberProfileId = ?, " +
+            " onModerationHold = ? WHERE memberId = ?";
+
+        ps = conn.prepareStatement( sql );
+        PreparedStatementUtils.set( ps, 1, -1 );
+        PreparedStatementUtils.set( ps, 2, -1 );
+        PreparedStatementUtils.set( ps, 3, false );
+        PreparedStatementUtils.set( ps, 4, memberId );
+      }
+
+      ps.executeUpdate();
+      ps.close();
+
+      //now clean up and stray member contacts and member profiles now that are no longer linked to
+      if( oldModerationMemberContactId != -1 )
+      {
+        ps = conn.prepareStatement( "DELETE FROM MEMBERCONTACTS WHERE memberContactId = ?" );
+        ps.setInt( 1, oldModerationMemberContactId );
+        ps.executeUpdate();
+        ps.close();
+      }
+
+      if( oldModerationMemberProfileId != -1 )
+      {
+        ps = conn.prepareStatement( "DELETE FROM MEMBERPROFILES WHERE memberProfileId = ?" );
+        ps.setInt( 1, oldModerationMemberProfileId );
+        ps.executeUpdate();
+        ps.close();
+      }
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param memberId              Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void moderatePassMemberDetails( int memberId ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //update password in database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      String sql = SELECT_ONLY_MEMBER_ONLY_SQL + ", CURRENT_TIMESTAMP now " + FROM_ONLY_MEMBER_ONLY_SQL + "WHERE memberId = ?";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberId );
+      ResultSet rs = ps.executeQuery();
+
+      //now retrieve member object/s
+      Member member = null;
+      int oldMemberContactId = -1;
+      int oldModerationMemberContactId = -1;
+      int oldMemberProfileId = -1;
+      int oldModerationMemberProfileId = -1;
+      Date now = null;
+
+      if( rs.next() )
+      {
+        member = createMember( rs );
+        oldMemberContactId = NumberUtils.parseInt( rs.getString( "memberContactId" ), -1 );
+        oldModerationMemberContactId = NumberUtils.parseInt( rs.getString( "moderationMemberContactId" ), -1 );
+        oldMemberProfileId = NumberUtils.parseInt( rs.getString( "memberProfileId" ), -1 );
+        oldModerationMemberProfileId = NumberUtils.parseInt( rs.getString( "moderationMemberProfileId" ), -1 );
+        now = rs.getTimestamp( "now" );
+      }
+      else
+      {
+        return;
+      }
+
+      rs.close();
+      ps.close();
+
+      //set new ids
+      int newMemberContactId = oldMemberContactId;
+      int newModerationMemberContactId = oldModerationMemberContactId;
+      int newMemberProfileId = oldMemberProfileId;
+      int newModerationMemberProfileId = oldModerationMemberProfileId;
+
+      if( oldModerationMemberContactId != -1 )
+      {
+        newMemberContactId = oldModerationMemberContactId;
+        newModerationMemberContactId = -1;
+      }
+
+      if( oldModerationMemberProfileId != -1 )
+      {
+        newMemberProfileId = oldModerationMemberProfileId;
+        newModerationMemberProfileId = -1;
+      }
+
+      //if the user had paid and this is the first moderation, then they should go live!
+      if( member.lastPaymentDate != null && member.goLiveDate == null && newMemberContactId != -1 && newMemberProfileId != -1 )
+      {
+        member.expiryDate = new java.sql.Timestamp( now.getTime() + getMembershipDurationInMillis() );
+        member.goLiveDate = now;
+      }
+
+      //now we must set all of the new values
+      sql = "UPDATE MEMBERS SET memberContactId = ?, moderationMemberContactId = ?, memberProfileId = ?, moderationMemberProfileId = ?, " +
+          " goLiveDate = ?, expiryDate = ?, onModerationHold = ? WHERE memberId = ?";
+      ps = conn.prepareStatement( sql );
+      PreparedStatementUtils.set( ps, 1, newMemberContactId );
+      PreparedStatementUtils.set( ps, 2, newModerationMemberContactId );
+      PreparedStatementUtils.set( ps, 3, newMemberProfileId );
+      PreparedStatementUtils.set( ps, 4, newModerationMemberProfileId );
+      PreparedStatementUtils.set( ps, 5, member.goLiveDate );
+      PreparedStatementUtils.set( ps, 6, member.expiryDate );
+      PreparedStatementUtils.set( ps, 7, false );
+      PreparedStatementUtils.set( ps, 8, memberId );
+      ps.executeUpdate();
+      ps.close();
+
+      //now clean up and stray member contacts and member profiles that are no longer linked to
+      if( oldMemberContactId != -1 && oldMemberContactId != newMemberContactId )
+      {
+        ps = conn.prepareStatement( "DELETE FROM MEMBERCONTACTS WHERE memberContactId = ?" );
+        ps.setInt( 1, oldMemberContactId );
+        ps.executeUpdate();
+        ps.close();
+      }
+
+      if( oldMemberProfileId != -1 && oldMemberProfileId != newMemberProfileId )
+      {
+        ps = conn.prepareStatement( "DELETE FROM MEMBERPROFILES WHERE memberProfileId = ?" );
+        ps.setInt( 1, oldMemberProfileId );
+        ps.executeUpdate();
+        ps.close();
+      }
+
+      updateMemberSearchKeywords( memberId );
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param memberId              Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void updateMemberSearchKeywords( int memberId ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //update password in database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      String sql = "SELECT mc.name, mc.city, mc.primaryCategoryRef, mc.primaryDisciplineRef, mc.secondaryCategoryRef, mc.secondaryDisciplineRef, mc.tertiaryCategoryRef, mc.tertiaryDisciplineRef, mc.countryRef, mc.regionRef, mc.countyRef, mp.keywords, mp.specialisations FROM members m LEFT OUTER JOIN memberContacts mc ON ( m.memberContactId = mc.memberContactId ) LEFT OUTER JOIN memberProfiles mp ON ( m.memberProfileId = mp.memberProfileId ) WHERE memberId = ?";
+
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberId );
+      ResultSet rs = ps.executeQuery();
+
+      //now retrieve member object/s
+      MemberContact memberContact = null;
+      String keywords = "";
+      String specialisations = "";
+
+      if( rs.next() )
+      {
+        memberContact = new MemberContact(
+            StringUtils.nullString( rs.getString( "name" ) ),
+            NumberUtils.parseInt( rs.getString( "primaryCategoryRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "primaryDisciplineRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "secondaryCategoryRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "secondaryDisciplineRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "tertiaryCategoryRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "tertiaryDisciplineRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "countryRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "regionRef" ), -1 ),
+            StringUtils.nullString( rs.getString( "city" ) ),
+            NumberUtils.parseInt( rs.getString( "countyRef" ), -1 )
+             );
+
+        keywords = StringUtils.nullString( rs.getString( "keywords" ) );
+        specialisations = StringUtils.nullString( rs.getString( "specialisations" ) );
+      }
+      else
+      {
+        return;
+      }
+
+      rs.close();
+      ps.close();
+
+      ArrayList keywordsLst = getNormalTextFieldKeywords( EncodeUtils.HTMLUnEncode( memberContact.name ) );
+      keywordsLst.addAll( getNormalTextFieldKeywords( EncodeUtils.HTMLUnEncode( memberContact.city ) ) );
+      keywordsLst.addAll( getCommaSepTextFieldKeywords( EncodeUtils.HTMLUnEncode( keywords ) ) );
+      keywordsLst.addAll( getCommaSepTextFieldKeywords( EncodeUtils.HTMLUnEncode( specialisations ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberContact.getPrimaryDisciplineDesc() ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberContact.getSecondaryDisciplineDesc() ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberContact.getTertiaryDisciplineDesc() ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberContact.getCountryDesc() ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberContact.getRegionDesc() ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberContact.getCountyDesc() ) ) );
+      removeDuplicates( keywordsLst );
+
+      sql = "DELETE FROM MEMBERSEARCHWORDS WHERE memberId = ?";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberId );
+      ps.executeUpdate();
+
+      sql = "INSERT INTO MEMBERSEARCHWORDS ( memberId, searchWord ) VALUES ( ?, ? )";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberId );
+
+      for( int i = 0; i < keywordsLst.size(); i++ )
+      {
+        PreparedStatementUtils.set( ps, 2, (String)keywordsLst.get( i ), 190 );
+        ps.executeUpdate();
+      }
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param data  Description of Parameter
+ * @return      Description of the Returned Value
+ */
+  public static ArrayList splitComboOption( String data )
+  {
+    if( data == null || data.length() == 0 )
+    {
+      return new ArrayList();
+    }
+
+    if( data.startsWith( "*CG" ) )
+    {
+      data = data.substring( 3 );
+    }
+
+    String[] reply = StringUtils.split( data, "/" );
+    ArrayList replyList = new ArrayList();
+
+    for( int i = 0; i < reply.length; i++ )
+    {
+      replyList.add( reply[i].toUpperCase().trim() );
+    }
+
+    return replyList;
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param memberJobId           Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void moderatePassMemberJob( int memberJobId ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //find one to delete
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      String sql = "SELECT moderatedJobId FROM MEMBERJOBS WHERE memberJobId = ?";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberJobId );
+      ResultSet rs = ps.executeQuery();
+      int moderatedJobId = -1;
+
+      if( rs.next() )
+      {
+        moderatedJobId = NumberUtils.parseInt( rs.getString( "moderatedJobId" ), -1 );
+      }
+
+      //change status of moderated one we're about to delete to protect unique contraint from gettin all arsey
+      sql = "UPDATE MEMBERJOBS SET forModeration='D' WHERE memberJobId = ?";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, moderatedJobId );
+      ps.executeUpdate();
+
+      //change status of unmoderated one to set it as moderated
+      sql = "UPDATE MEMBERJOBS SET forModeration='f' WHERE memberJobId = ?";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberJobId );
+      ps.executeUpdate();
+
+      //now kill the original
+      sql = "DELETE FROM MEMBERJOBS WHERE memberJobId = ?";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, moderatedJobId );
+      ps.executeUpdate();
+
+      updateMemberJobSearchKeywords( memberJobId );
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param memberJobId           Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void updateMemberJobSearchKeywords( int memberJobId ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //update password in database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      String sql = "SELECT mj.memberJobId, mj.referenceNo, mj.title, mj.mainCategoryRef, mj.disciplineRef, mj.typeOfWorkRef, mj.countryRef, mj.ukRegionRef, mj.countyRef, mj.city FROM memberJobs mj WHERE mj.memberJobId = ?";
+
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberJobId );
+      ResultSet rs = ps.executeQuery();
+
+      //now retrieve member object/s
+      MemberJob memberJob = null;
+
+      if( rs.next() )
+      {
+        memberJob = new MemberJob(
+            rs.getInt( "memberJobId" ),
+            StringUtils.nullString( rs.getString( "referenceNo" ) ),
+            StringUtils.nullString( rs.getString( "title" ) ),
+            NumberUtils.parseInt( rs.getString( "mainCategoryRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "disciplineRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "typeOfWorkRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "countryRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "ukRegionRef" ), -1 ),
+            NumberUtils.parseInt( rs.getString( "countyRef" ), -1 ),
+            StringUtils.nullString( rs.getString( "city" ) )
+             );
+      }
+      else
+      {
+        return;
+      }
+
+      rs.close();
+      ps.close();
+
+      ArrayList keywordsLst = new ArrayList();
+      keywordsLst.add( EncodeUtils.HTMLUnEncode( memberJob.referenceNo ).toUpperCase().trim() );
+      keywordsLst.addAll( getNormalTextFieldKeywords( EncodeUtils.HTMLUnEncode( memberJob.title ) ) );
+      keywordsLst.addAll( getNormalTextFieldKeywords( EncodeUtils.HTMLUnEncode( memberJob.city ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberJob.getMainCategoryDesc() ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberJob.getDisciplineDesc() ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberJob.getTypeOfWorkDesc() ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberJob.getCountryDesc() ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberJob.getRegionDesc() ) ) );
+      keywordsLst.addAll( splitComboOption( EncodeUtils.HTMLUnEncode( memberJob.getCountyDesc() ) ) );
+      removeDuplicates( keywordsLst );
+
+      sql = "DELETE FROM MEMBERJOBSEARCHWORDS WHERE memberJobId = ?";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberJobId );
+      ps.executeUpdate();
+
+      sql = "INSERT INTO MEMBERJOBSEARCHWORDS ( memberJobId, searchWord ) VALUES ( ?, ? )";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberJobId );
+
+      for( int i = 0; i < keywordsLst.size(); i++ )
+      {
+        PreparedStatementUtils.set( ps, 2, (String)keywordsLst.get( i ), 190 );
+        ps.executeUpdate();
+      }
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param memberJobId           Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void moderateFailMemberJob( int memberJobId ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //find one to delete
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      String sql = "DELETE FROM MEMBERJOBS WHERE forModeration='t' AND memberJobId = ?";
+      //the formoderation bit is just a security check and could be taken out in theory without changing the apps functionality
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberJobId );
+      ps.executeUpdate();
+      ps.close();
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+////////////////////////////////////////////////////////// END OF JOB MODERATION ////////////////////////////////////////
+
+/////////////////////////////////////////////////////// JOB SAVE/LOAD /////////////////////////////////////////////////
+
+  //checks whether user has unique email and profileurl when registering
+/**
+ * Description of the Method
+ *
+ * @param memberId              Description of Parameter
+ * @param referenceNo           Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static boolean checkUniqueJobReference( int memberId, String referenceNo ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = conn.prepareStatement( "SELECT memberJobId FROM MEMBERJOBS WHERE memberId = ? AND UPPER( referenceNo ) = ?" );
+      ps.setInt( 1, memberId );
+      ps.setString( 2, referenceNo.trim().toUpperCase() );
+      ResultSet rs = ps.executeQuery();
+
+      if( rs.next() )
+      {
+        rs.close();
+        ps.close();
+        return false;
+      }
+
+      rs.close();
+      ps.close();
+
+      return true;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Adds a feature to the AndSaveMemberJobForModeraion attribute of the
+ * MemberSql class
+ *
+ * @param member                The feature to be added to the
+ *      AndSaveMemberJobForModeraion attribute
+ * @param memberJob             The feature to be added to the
+ *      AndSaveMemberJobForModeraion attribute
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static int addAndSaveMemberJobForModeraion( Member member, MemberJob memberJob ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //add or update the record in the database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+
+      //find existing job data
+      MemberJob[] jobArray = null;
+
+      if( memberJob.memberJobId != -1 )
+      {
+        int jobIdx = member.getJobIndexByJobId( memberJob.memberJobId );
+        jobArray = (MemberJob[])( member.memberJobs.get( jobIdx ) );
+      }
+
+      if( memberJob.memberJobId == -1 || jobArray[1] == null )
+      {
+        //adding
+
+        //generate unique id and date stamp for object.
+        ps = conn.prepareStatement( "SELECT GEN_ID( MEMBERJOBS_PKGEN, 1 ) id, CURRENT_TIMESTAMP now FROM GLOBALDATABASEVARIABLES" );
+        ResultSet rs = ps.executeQuery();
+
+        if( rs.next() )
+        {
+          if( memberJob.memberJobId == -1 )
+          {
+            memberJob.creationDate = rs.getDate( "now" );
+          }
+          else
+          {
+            memberJob.creationDate = jobArray[0].creationDate;
+          }
+          memberJob.moderatedJobId = memberJob.memberJobId;
+          memberJob.memberJobId = rs.getInt( "id" );
+          memberJob.lastUpdatedDate = rs.getDate( "now" );
+        }
+
+        //save
+        ps = conn.prepareStatement( INSERT_MEMBERJOB_SQL );
+        setMemberJobValues( ps, memberJob );
+        ps.setInt( 17, member.memberId );
+        ps.setInt( 18, memberJob.memberJobId );
+        ps.executeUpdate();
+
+        //now add to original member
+        MemberJob[] job = new MemberJob[2];
+        job[1] = memberJob;
+        member.memberJobs.add( job );
+      }
+      else
+      {
+        //update pointer to the moderated record if there is one
+        if( jobArray[0] != null )
+        {
+          memberJob.moderatedJobId = jobArray[0].memberJobId;
+        }
+
+        ps = conn.prepareStatement( UPDATE_MEMBERJOB_SQL );
+        setMemberJobValues( ps, memberJob );
+        ps.setInt( 17, member.memberId );
+        ps.setInt( 18, memberJob.memberJobId );
+        ps.executeUpdate();
+
+        //update object
+        jobArray[1] = memberJob;
+      }
+
+      return memberJob.memberJobId;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param member                Description of Parameter
+ * @param memberJobId           Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void deleteMemberJob( Member member, int memberJobId ) throws ServletException
+  {
+    Connection conn = null;
+    try
+    {
+      //find member job on member (both moderated and not)
+      int jobIdx = member.getJobIndexByJobId( memberJobId );
+
+      //if job found (this can be not found if refreshing page after delete etc)
+      if( jobIdx != -1 )
+      {
+        MemberJob[] jobArray = (MemberJob[])( member.memberJobs.get( jobIdx ) );
+
+        //add or update the record in the database
+        conn = DatabaseUtils.getDatabaseConnection();
+        PreparedStatement ps = null;
+
+        //delete both jobs
+        String sql = "DELETE FROM MEMBERJOBS ";
+        String filterPrefix = "WHERE ";
+
+        if( jobArray[1] != null )
+        {
+          sql += filterPrefix + "memberJobId = ? ";
+          filterPrefix = "OR ";
+        }
+
+        if( jobArray[0] != null )
+        {
+          sql += filterPrefix + "memberJobId = ? ";
+          filterPrefix = "OR ";
+        }
+
+        //generate unique id and date stamp for object.
+        ps = conn.prepareStatement( sql );
+        int qnMarkNo = 1;
+
+        if( jobArray[1] != null )
+        {
+          ps.setInt( qnMarkNo++, jobArray[1].memberJobId );
+        }
+
+        if( jobArray[0] != null )
+        {
+          ps.setInt( qnMarkNo++, jobArray[0].memberJobId );
+        }
+
+        ps.executeUpdate();
+
+        //now delete from member object
+        member.memberJobs.remove( jobIdx );
+      }
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param memberFileId          Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void moderatePassMemberFile( int memberFileId ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //setup
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+
+      //change status of unmoderated one to set it as moderated
+      String sql = "UPDATE MEMBERFILES SET forModeration='f' WHERE memberFileId = ?";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberFileId );
+      ps.executeUpdate();
+
+      updateMemberFileSearchKeywords( memberFileId );
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param memberFileId          Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void updateMemberFileSearchKeywords( int memberFileId ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //update password in database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+      String sql = "SELECT mf.keywords, mf.description, mf.displayFileName FROM memberFiles mf WHERE mf.memberFileId = ?";
+
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberFileId );
+      ResultSet rs = ps.executeQuery();
+
+      //now retrieve member object/s
+      String keywords = null;
+      String description = null;
+      String displayFileName = null;
+
+      if( rs.next() )
+      {
+        keywords = StringUtils.nullString( rs.getString( "keywords" ) );
+        description = StringUtils.nullString( rs.getString( "description" ) );
+        displayFileName = StringUtils.nullString( rs.getString( "displayFileName" ) );
+      }
+      else
+      {
+        return;
+      }
+
+      rs.close();
+      ps.close();
+
+      ArrayList keywordsLst = getCommaSepTextFieldKeywords( EncodeUtils.HTMLUnEncode( keywords ) );
+      keywordsLst.addAll( getNormalTextFieldKeywords( EncodeUtils.HTMLUnEncode( description ) ) );
+      keywordsLst.addAll( getNormalTextFieldKeywords( EncodeUtils.HTMLUnEncode( displayFileName ) ) );
+      removeDuplicates( keywordsLst );
+
+      sql = "DELETE FROM MEMBERFILESEARCHWORDS WHERE memberFileId = ?";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberFileId );
+      ps.executeUpdate();
+
+      sql = "INSERT INTO MEMBERFILESEARCHWORDS ( memberFileId, searchWord ) VALUES ( ?, ? )";
+      ps = conn.prepareStatement( sql );
+      ps.setInt( 1, memberFileId );
+
+      for( int i = 0; i < keywordsLst.size(); i++ )
+      {
+        PreparedStatementUtils.set( ps, 2, (String)keywordsLst.get( i ), 190 );
+        ps.executeUpdate();
+      }
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Adds a feature to the AndSaveMemberFileForModeraion attribute of the
+ * MemberSql class
+ *
+ * @param member                The feature to be added to the
+ *      AndSaveMemberFileForModeraion attribute
+ * @param memberFile            The feature to be added to the
+ *      AndSaveMemberFileForModeraion attribute
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static int addAndSaveMemberFileForModeraion( Member member, MemberFile memberFile ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //add or update the record in the database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+
+      //if it's a company logo - make sure no others are set to company logo
+      if( memberFile.portraitImage )
+      {
+        ps = conn.prepareStatement( "UPDATE memberFiles SET portraitImage = 'f' WHERE memberid = ? " );
+        ps.setInt( 1, member.memberId );
+        ps.executeUpdate();
+      }
+
+      //generate unique id for object.
+      ps = conn.prepareStatement( "SELECT GEN_ID( MEMBERFILES_PKGEN, 1 ) id FROM GLOBALDATABASEVARIABLES" );
+      ResultSet rs = ps.executeQuery();
+      if( rs.next() )
+      {
+        memberFile.memberFileId = rs.getInt( "id" );
+      }
+
+      //save
+      ps = conn.prepareStatement( INSERT_MEMBERFILE_SQL );
+      setMemberFileValues( ps, memberFile );
+      ps.setInt( 11, member.memberId );
+      ps.setInt( 12, memberFile.memberFileId );
+      ps.executeUpdate();
+
+      //now add to original member
+      member.moderationMemberFiles.add( memberFile );
+
+      return memberFile.memberFileId;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  public static int findUnpaidPortfolioFileSpaceMB() throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //add or update the record in the database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+
+      //generate unique id for object.
+      ps = conn.prepareStatement( "SELECT SUM( mf.filebytesize ) / ( 1024 * 1024 ) FROM members M INNER JOIN memberfiles MF ON( MF.memberid = m.memberid ) WHERE m.lastpaymentdate IS NULL" );
+      ResultSet rs = ps.executeQuery();
+      rs.next();
+
+      return rs.getInt( 1 );
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+//////////////////////////////////////////////// END OF FILE SAVE/LOAD ////////////////////////////////////////////
+
+//////////////////////////////////////////////// MEMBER OF WEEK ////////////////////////////////////////////
+
+/**
+ * Description of the Method
+ *
+ * @param options               Description of Parameter
+ * @param memberId              Description of Parameter
+ * @exception ServletException  thrown if database exception
+ */
+  public static void populateMemberOfWeekDropDown( ArrayList options, int memberId ) throws ServletException
+  {
+    Connection conn = null;
+    try
+    {
+      //add or update the record in the database
+      conn = DatabaseUtils.getDatabaseConnection();
+      PreparedStatement ps = null;
+
+      //generate unique id for object.
+      ps = conn.prepareStatement( "SELECT weekDescriptor, memberId, description FROM memberOfWeek WHERE weekDescriptor >= ? ORDER BY weekDescriptor ASC " );
+      ps.setString( 1, ( (DropDownOption)options.get( 0 ) ).id );
+      ResultSet rs = ps.executeQuery();
+      String curentRowWeekDescriptor = "-1";
+
+      if( rs.next() )
+      {
+        curentRowWeekDescriptor = rs.getString( "weekDescriptor" );
+      }
+
+      for( int i = 0; i < options.size(); i++ )
+      {
+        DropDownOption option = (DropDownOption)options.get( i );
+
+        if( curentRowWeekDescriptor.equals( option.id ) )
+        {
+          option.desc += rs.getString( "description" );
+          option.selected = ( memberId == rs.getInt( "memberId" ) );
+
+          if( rs.next() )
+          {
+            curentRowWeekDescriptor = rs.getString( "weekDescriptor" );
+          }
+        }
+        else
+        {
+          option.desc += "NONE SET";
+        }
+      }
+
+      rs.close();
+      ps.close();
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Sets the Dates attribute of the MemberSql class
+ *
+ * @param conn              The new Dates value
+ * @param ps                The new Dates value
+ * @param memberId          The new Dates value
+ * @param fieldNames        The new Dates value
+ * @param dates             The new Dates value
+ * @exception SQLException  thrown if database exception
+ */
+  private static void setDates( Connection conn, PreparedStatement ps, int memberId, String[] fieldNames, Date[] dates ) throws SQLException
+  {
+    String sql = "UPDATE MEMBERS SET ";
+
+    for( int i = 0; i < fieldNames.length; i++ )
+    {
+      sql += ( i > 0 ? ", " : "" ) + fieldNames[i] + " = " + ( ( dates.length >= i && dates[i] != null ) ? "?" : "CURRENT_TIMESTAMP" );
+    }
+
+    sql += " WHERE memberId = ?";
+    ps = conn.prepareStatement( sql );
+
+    int colNum = 1;
+
+    for( int i = 0; i < fieldNames.length; i++ )
+    {
+      if( dates.length >= i && dates[i] != null )
+      {
+        PreparedStatementUtils.set( ps, colNum++, dates[i] );
+      }
+    }
+
+    ps.setInt( colNum++, memberId );
+    ps.executeUpdate();
+  }
+
+/**
+ * Sets the MemberFieldId attribute of the MemberSql class
+ *
+ * @param conn              The new MemberFieldId value
+ * @param ps                The new MemberFieldId value
+ * @param fieldName         The new MemberFieldId value
+ * @param memberId          The new MemberFieldId value
+ * @param id                The new MemberFieldId value
+ * @exception SQLException  thrown if database exception
+ */
+  private static void setMemberFieldId( Connection conn, PreparedStatement ps, String fieldName, int memberId, int id ) throws SQLException
+  {
+    ps = conn.prepareStatement( "UPDATE MEMBERS SET " + fieldName + "=? WHERE memberId=?" );
+    ps.setInt( 1, id );
+    ps.setInt( 2, memberId );
+    ps.executeUpdate();
+  }
+
+///**
+// * Sets the Val attribute of the MemberSql class
+// *
+// * @param ps                The new Val value
+// * @param fieldNo           The new Val value
+// * @param val               The new Val value
+// * @exception SQLException  thrown if database exception
+// */
+//  private static void PreparedStatementUtils.set( PreparedStatement ps, int fieldNo, int val ) throws SQLException
+//  {
+//    if( val == -1 )
+//    {
+//      ps.setNull( fieldNo, Types.INTEGER );
+//    }
+//    else
+//    {
+//      ps.setInt( fieldNo, val );
+//    }
+//  }
+//
+///**
+// * Sets the Val attribute of the MemberSql class
+// *
+// * @param ps                The new Val value
+// * @param fieldNo           The new Val value
+// * @param val               The new Val value
+// * @exception SQLException  thrown if database exception
+// */
+//  private static void PreparedStatementUtils.set( PreparedStatement ps, int fieldNo, long val ) throws SQLException
+//  {
+//    if( val == -1 )
+//    {
+//      ps.setNull( fieldNo, Types.INTEGER );
+//    }
+//    else
+//    {
+//      ps.setLong( fieldNo, val );
+//    }
+//  }
+//
+///**
+// * Sets the Val attribute of the MemberSql class
+// *
+// * @param ps                The new Val value
+// * @param fieldNo           The new Val value
+// * @param val               The new Val value
+// * @exception SQLException  thrown if database exception
+// */
+//  private static void PreparedStatementUtils.set( PreparedStatement ps, int fieldNo, boolean val ) throws SQLException
+//  {
+//    if( val )
+//    {
+//      ps.setString( fieldNo, "t" );
+//    }
+//    else
+//    {
+//      ps.setString( fieldNo, "f" );
+//    }
+//  }
+//
+///**
+// * Sets the Val attribute of the MemberSql class
+// *
+// * @param ps                The new Val value
+// * @param fieldNo           The new Val value
+// * @param val               The new Val value
+// * @exception SQLException  thrown if database exception
+// */
+//  private static void PreparedStatementUtils.set( PreparedStatement ps, int fieldNo, String val ) throws SQLException
+//  {
+//    PreparedStatementUtils.set( ps, fieldNo, val, 200 );
+//  }
+//
+///**
+// * Sets the Val attribute of the MemberSql class
+// *
+// * @param ps                The new Val value
+// * @param fieldNo           The new Val value
+// * @param val               The new Val value
+// * @param maxLength         The new Val value
+// * @exception SQLException  thrown if database exception
+// */
+//  private static void PreparedStatementUtils.set( PreparedStatement ps, int fieldNo, String val, int maxLength ) throws SQLException
+//  {
+//    if( val == null )
+//    {
+//      ps.setNull( fieldNo, Types.VARCHAR );
+//    }
+//    else
+//    {
+//      if( maxLength >= 0 && val.length() > maxLength )
+//      {
+//        val = val.substring( 0, maxLength - 1 );
+//      }
+//      ps.setString( fieldNo, val );
+//    }
+//  }
+//
+///**
+// * Sets the Val attribute of the MemberSql class
+// *
+// * @param ps                The new Val value
+// * @param fieldNo           The new Val value
+// * @param val               The new Val value
+// * @exception SQLException  thrown if database exception
+// */
+//  private static void PreparedStatementUtils.set( PreparedStatement ps, int fieldNo, java.util.Date val ) throws SQLException
+//  {
+//    if( val == null )
+//    {
+//      ps.setNull( fieldNo, Types.TIMESTAMP );
+//    }
+//    else
+//    {
+//      ps.setTimestamp( fieldNo, new java.sql.Timestamp( val.getTime() ) );
+//    }
+//  }
+//
+
+/**
+ * Gets the NormalTextFieldKeywords attribute of the MemberSql class
+ *
+ * @param fieldVal  Description of Parameter
+ * @return          The NormalTextFieldKeywords value
+ */
+  private static ArrayList getNormalTextFieldKeywords( String fieldVal )
+  {
+    ArrayList keywords = new ArrayList();
+    keywords.add( formatKeyword( fieldVal ) );
+
+    char[] fieldValArray = fieldVal.toCharArray();
+    String tempKeyWd = "";
+
+    for( int i = 0; i < fieldValArray.length; i++ )
+    {
+      if( Character.isLetterOrDigit( fieldValArray[i] ) || fieldValArray[i] == '-' || fieldValArray[i] == '\'' )
+      {
+        tempKeyWd += fieldValArray[i];
+      }
+      else if( tempKeyWd.length() != 0 )
+      {
+        keywords.add( formatKeyword( tempKeyWd ) );
+        tempKeyWd = "";
+      }
+    }
+
+    if( tempKeyWd.length() != 0 )
+    {
+      keywords.add( formatKeyword( tempKeyWd ) );
+    }
+
+    return keywords;
+  }
+
+/**
+ * Gets the CommaSepTextFieldKeywords attribute of the MemberSql class
+ *
+ * @param fieldVal  Description of Parameter
+ * @return          The CommaSepTextFieldKeywords value
+ */
+  private static ArrayList getCommaSepTextFieldKeywords( String fieldVal )
+  {
+    ArrayList keywords = new ArrayList();
+    String[] keywordArr = MemberProfile.splitNTrim( fieldVal );
+
+    for( int i = 0; i < keywordArr.length; i++ )
+    {
+      keywords.add( formatKeyword( keywordArr[i] ) );
+    }
+
+    return keywords;
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param email                 Description of Parameter
+ * @param passwd                Description of Parameter
+ * @param memberId              Description of Parameter
+ * @param profileURL            Description of Parameter
+ * @param moderationFilter      Description of Parameter
+ * @param registeredAfter       Description of Parameter
+ * @param registeredBefore      Description of Parameter
+ * @param expiresAfter          Description of Parameter
+ * @param expiresBefore         Description of Parameter
+ * @param unpaidFilter          Description of Parameter
+ * @param addFiles              Description of Parameter
+ * @param addJobs               Description of Parameter
+ * @return                      Description of the Returned Value
+ * @exception ServletException  thrown if database exception
+ */
+  private static ArrayList loadFullMembers( String email, String passwd, int memberId, String profileURL, boolean moderationFilter, Date registeredAfter, Date registeredBefore, Date expiresAfter, Date expiresBefore, boolean unpaidFilter, boolean addFiles, boolean addJobs ) throws ServletException
+  {
+    Connection conn = null;
+
+    try
+    {
+      //create sql statement
+      ArrayList members = new ArrayList();
+      Member member = null;
+      conn = DatabaseUtils.getDatabaseConnection();
+      String sqlSelect = SELECT_FULLMEMBER_SQL;
+      String sqlFilter = "";
+      String sqlOrder = "";
+      String filterPrefix = "WHERE ";
+      String orderPrefix = "ORDER BY ";
+
+      if( email != null )
+      {
+        sqlFilter += filterPrefix + "UPPER(m.email)=? ";
+        filterPrefix = "AND ";
+      }
+
+      if( passwd != null )
+      {
+        sqlFilter += filterPrefix + "UPPER(m.passwd)=? ";
+        filterPrefix = "AND ";
+      }
+
+      if( memberId != -1 )
+      {
+        sqlFilter += filterPrefix + "m.memberId=? ";
+        filterPrefix = "AND ";
+      }
+
+      if( profileURL != null )
+      {
+        sqlFilter += filterPrefix + "UPPER(m.profileURL)=?";
+        filterPrefix = "AND ";
+      }
+
+      if( moderationFilter )
+      {
+        sqlFilter += filterPrefix + "( m.moderationMemberContactId IS NOT NULL OR m.moderationMemberProfileId IS NOT NULL ) ";
+        sqlOrder += orderPrefix + " m.onModerationHold ASC, m.lastPaymentDate DESC";
+        filterPrefix = "AND ";
+        orderPrefix = ", ";
+      }
+
+      if( registeredAfter != null )
+      {
+        sqlFilter += filterPrefix + "regDate >= ? ";
+        filterPrefix = "AND ";
+      }
+
+      if( registeredBefore != null )
+      {
+        sqlFilter += filterPrefix + "regDate < ? ";
+        filterPrefix = "AND ";
+      }
+
+      if( unpaidFilter )
+      {
+        sqlFilter += filterPrefix + "lastPaymentDate IS NULL ";
+        filterPrefix = "AND ";
+      }
+
+      if( expiresAfter != null )
+      {
+        sqlFilter += filterPrefix + "expiryDate IS NOT NULL AND expiryDate >= ? ";
+        filterPrefix = "AND ";
+      }
+
+      if( expiresBefore != null )
+      {
+        sqlFilter += filterPrefix + "expiryDate IS NOT NULL AND expiryDate < ? ";
+        filterPrefix = "AND ";
+      }
+
+      //make sure at least one filter has been applied
+      if( filterPrefix.equals( "WHERE " ) )
+      {
+        return new ArrayList();
+      }
+      System.out.println( sqlSelect + " " + sqlFilter + " " + sqlOrder );
+      PreparedStatement ps = conn.prepareStatement( sqlSelect + " " + sqlFilter + " " + sqlOrder );
+
+      int qtnMarkno = 1;
+
+      if( email != null )
+      {
+        ps.setString( qtnMarkno++, email.trim().toUpperCase() );
+      }
+
+      if( passwd != null )
+      {
+        ps.setString( qtnMarkno++, passwd.trim().toUpperCase() );
+      }
+
+      if( memberId != -1 )
+      {
+        ps.setInt( qtnMarkno++, memberId );
+      }
+
+      if( profileURL != null )
+      {
+        ps.setString( qtnMarkno++, profileURL.trim().toUpperCase() );
+      }
+
+      if( registeredAfter != null )
+      {
+        PreparedStatementUtils.set( ps, qtnMarkno++, registeredAfter );
+      }
+
+      if( registeredBefore != null )
+      {
+        PreparedStatementUtils.set( ps, qtnMarkno++, registeredBefore );
+      }
+
+      if( expiresAfter != null )
+      {
+        PreparedStatementUtils.set( ps, qtnMarkno++, expiresAfter );
+      }
+
+      if( expiresBefore != null )
+      {
+        PreparedStatementUtils.set( ps, qtnMarkno++, expiresBefore );
+      }
+
+      ResultSet rs = ps.executeQuery();
+
+      //now retrieve member object/s
+      while( rs.next() )
+      {
+        member = createMember( rs );
+
+        member.memberContact = createMemberContact( rs, "memberContactId", "mc_" );
+        member.moderationMemberContact = createMemberContact( rs, "moderationMemberContactId", "mmc_" );
+        member.memberProfile = createMemberProfile( rs, "memberProfileId", "mp_" );
+        member.moderationMemberProfile = createMemberProfile( rs, "moderationMemberProfileId", "mmp_" );
+
+        members.add( member );
+      }
+
+      rs.close();
+      ps.close();
+
+      //now populate portfolio files
+      if( addFiles && members.size() > 0 )
+      {
+        ps = conn.prepareStatement( SELECT_MEMBERFILE_SQL + "WHERE mf.memberId=?" );
+        MemberFile temp;
+
+        for( int i = 0; i < members.size(); i++ )
+        {
+          member = (Member)members.get( i );
+          ps.setInt( 1, member.memberId );
+          rs = ps.executeQuery();
+
+          while( rs.next() )
+          {
+            temp = createMemberFile( rs );
+
+            if( temp.mainFile )
+            {
+              member.mainFile = temp;
+            }
+
+            if( temp.portraitImage )
+            {
+              member.portraitImage = temp;
+            }
+
+            if( temp.forModeration )
+            {
+              member.moderationMemberFiles.add( temp );
+            }
+            else
+            {
+              member.memberFiles.add( temp );
+            }
+          }
+
+          rs.close();
+        }
+
+        ps.close();
+      }
+
+      if( addJobs && members.size() > 0 )
+      {
+        //now populate jobs
+        ps = conn.prepareStatement( SELECT_MEMBERJOB_SQL + "WHERE mj.memberId=? ORDER BY mj.forModeration ASC" );
+        MemberJob tmpJob;
+        MemberJob[] jobArray;
+
+        for( int i = 0; i < members.size(); i++ )
+        {
+          member = (Member)members.get( i );
+
+          ps.setInt( 1, member.memberId );
+          rs = ps.executeQuery();
+
+          while( rs.next() )
+          {
+            tmpJob = createMemberJob( rs, "mj_" );
+
+            if( !tmpJob.forModeration )
+            {
+              // tackle all moderated jobs first
+
+              jobArray = new MemberJob[2];
+              jobArray[0] = tmpJob;
+              member.memberJobs.add( jobArray );
+            }
+            else
+            {
+              if( tmpJob.moderatedJobId == -1 )
+              {
+                // jobs needing moderation where no moderated version exists
+
+                jobArray = new MemberJob[2];
+                jobArray[1] = tmpJob;
+                member.memberJobs.add( jobArray );
+              }
+              else
+              {
+                // jobs requiring moderation where there already is a moderated version
+
+                int jobIdx = member.getJobIndexByJobId( tmpJob.moderatedJobId );
+                jobArray = (MemberJob[])member.memberJobs.get( jobIdx );
+                jobArray[1] = tmpJob;
+              }
+            }
+          }
+
+          rs.close();
+        }
+
+        ps.close();
+      }
+
+      return members;
+    }
+    catch( SQLException sex )
+    {
+      sex.printStackTrace();
+      throw new ServletException( sex.toString() );
+    }
+    catch( NamingException nex )
+    {
+      nex.printStackTrace();
+      throw new ServletException( nex.toString() );
+    }
+    finally
+    {
+      if( conn != null )
+      {
+        try
+        {
+          conn.close();
+        }
+        catch( SQLException sex )
+        {
+          throw new ServletException( sex.toString() );
+        }
+      }
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param fieldVal  Description of Parameter
+ * @return          Description of the Returned Value
+ */
+  private static String formatKeyword( String fieldVal )
+  {
+    return ( fieldVal.length() > 190 ) ? fieldVal.substring( 0, 189 ).toUpperCase() : fieldVal.toUpperCase();
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param arlList  Description of Parameter
+ */
+  private static void removeDuplicates( ArrayList arlList )
+  {
+    Set set = new HashSet();
+    List newList = new ArrayList();
+
+    for( Iterator iter = arlList.iterator(); iter.hasNext();  )
+    {
+      Object element = iter.next();
+      if( set.add( element ) )
+      {
+        newList.add( element );
+      }
+    }
+
+    arlList.clear();
+    arlList.addAll( newList );
+  }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Description of the Method
+ *
+ * @param rs                Description of Parameter
+ * @return                  Description of the Returned Value
+ * @exception SQLException  thrown if database exception
+ */
+  private static Member createMember( ResultSet rs ) throws SQLException
+  {
+    Member member = new Member(
+        rs.getInt( "memberid" ),
+        rs.getString( "email" ),
+        rs.getString( "passwd" ),
+        rs.getString( "profileUrl" ),
+        rs.getTimestamp( "regDate" ),
+        rs.getTimestamp( "lastPaymentDate" ),
+        rs.getTimestamp( "goLiveDate" ),
+        rs.getTimestamp( "expiryDate" ),
+        BooleanUtils.parseBoolean( rs.getString( "placedAdvert" ) ),
+        BooleanUtils.parseBoolean( rs.getString( "onModerationHold" ) ),
+        rs.getTimestamp( "wentOnHoldDate" ),
+        BooleanUtils.parseBoolean( rs.getString( "emailValidated" ) ),
+        rs.getInt( "validationKey" )
+         );
+    return member;
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param rs                Description of Parameter
+ * @param idColumnName      Description of Parameter
+ * @param prefix            Description of Parameter
+ * @return                  Description of the Returned Value
+ * @exception SQLException  thrown if database exception
+ */
+  private static MemberContact createMemberContact( ResultSet rs, String idColumnName, String prefix ) throws SQLException
+  {
+    if( rs.getString( idColumnName ) == null )
+    {
+      return null;
+    }
+    else
+    {
+      MemberContact memberContact = new MemberContact(
+          rs.getInt( idColumnName ),
+          rs.getTimestamp( prefix + "lastUpdatedDate" ),
+          rs.getString( prefix + "name" ),
+          NumberUtils.parseInt( rs.getString( prefix + "statusRef" ), -1 ),
+          rs.getString( prefix + "statusOther" ),
+          NumberUtils.parseInt( rs.getString( prefix + "primaryCategoryRef" ), -1 ),
+          NumberUtils.parseInt( rs.getString( prefix + "primaryDisciplineRef" ), -1 ),
+          NumberUtils.parseInt( rs.getString( prefix + "secondaryCategoryRef" ), -1 ),
+          NumberUtils.parseInt( rs.getString( prefix + "secondaryDisciplineRef" ), -1 ),
+          NumberUtils.parseInt( rs.getString( prefix + "tertiaryCategoryRef" ), -1 ),
+          NumberUtils.parseInt( rs.getString( prefix + "tertiaryDisciplineRef" ), -1 ),
+          NumberUtils.parseInt( rs.getString( prefix + "sizeRef" ), -1 ),
+          NumberUtils.parseInt( rs.getString( prefix + "countryRef" ), -1 ),
+          NumberUtils.parseInt( rs.getString( prefix + "regionRef" ), -1 ),
+          rs.getString( prefix + "address1" ),
+          rs.getString( prefix + "address2" ),
+          rs.getString( prefix + "city" ),
+          rs.getString( prefix + "postcode" ),
+          NumberUtils.parseInt( rs.getString( prefix + "countyRef" ), -1 ),
+          NumberUtils.parseInt( rs.getString( prefix + "contactTitleRef" ), -1 ),
+          rs.getString( prefix + "contactFirstName" ),
+          rs.getString( prefix + "contactSurname" ),
+          rs.getString( prefix + "telephone" ),
+          rs.getString( prefix + "mobile" ),
+          rs.getString( prefix + "fax" ),
+          rs.getString( prefix + "webaddress" ),
+          NumberUtils.parseInt( rs.getString( prefix + "whereDidYouHearRef" ), -1 ),
+          rs.getString( prefix + "whereDidYouHearOther" ),
+          rs.getString( prefix + "whereDidYouHearMagazine" )
+           );
+      return memberContact;
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param rs                Description of Parameter
+ * @param idColumnName      Description of Parameter
+ * @param prefix            Description of Parameter
+ * @return                  Description of the Returned Value
+ * @exception SQLException  thrown if database exception
+ */
+  private static MemberProfile createMemberProfile( ResultSet rs, String idColumnName, String prefix ) throws SQLException
+  {
+    if( rs.getString( idColumnName ) == null )
+    {
+      return null;
+    }
+    else
+    {
+      MemberProfile memberProfile = new MemberProfile(
+          rs.getInt( idColumnName ),
+          rs.getTimestamp( prefix + "lastUpdatedDate" ),
+          rs.getString( prefix + "personalstatement" ),
+          rs.getString( prefix + "specialisations" ),
+          rs.getString( prefix + "keywords" )
+           );
+      return memberProfile;
+    }
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param rs                Description of Parameter
+ * @return                  Description of the Returned Value
+ * @exception SQLException  thrown if database exception
+ */
+  private static MemberFile createMemberFile( ResultSet rs ) throws SQLException
+  {
+    MemberFile memberFile = new MemberFile(
+        rs.getInt( "memberFileId" ),
+        null,
+    //asset
+        NumberUtils.parseInt( rs.getString( "assetId" ), -1 ),
+        rs.getString( "description" ),
+        rs.getString( "keywords" ),
+        rs.getString( "displayFileName" ),
+        rs.getString( "mimeType" ),
+        rs.getLong( "fileByteSize" ),
+        BooleanUtils.parseBoolean( rs.getString( "isImage" ) ),
+        BooleanUtils.parseBoolean( rs.getString( "mainFile" ) ),
+        BooleanUtils.parseBoolean( rs.getString( "portraitImage" ) ),
+        BooleanUtils.parseBoolean( rs.getString( "forModeration" ) ),
+        rs.getTimestamp( "uploadDate" )
+         );
+    return memberFile;
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param rs                Description of Parameter
+ * @return                  Description of the Returned Value
+ * @exception SQLException  thrown if database exception
+ */
+  private static MemberJob createMemberJob( ResultSet rs ) throws SQLException
+  {
+    return createMemberJob( rs, "" );
+  }
+
+/**
+ * Description of the Method
+ *
+ * @param rs                Description of Parameter
+ * @param prefix            Description of Parameter
+ * @return                  Description of the Returned Value
+ * @exception SQLException  thrown if database exception
+ */
+  private static MemberJob createMemberJob( ResultSet rs, String prefix ) throws SQLException
+  {
+    MemberJob memberJob = new MemberJob(
+        rs.getInt( prefix + "memberJobId" ),
+        rs.getTimestamp( prefix + "creationDate" ),
+        rs.getTimestamp( prefix + "lastUpdatedDate" ),
+        rs.getString( prefix + "referenceNo" ),
+        rs.getString( prefix + "title" ),
+        NumberUtils.parseInt( rs.getString( prefix + "mainCategoryRef" ), -1 ),
+        NumberUtils.parseInt( rs.getString( prefix + "disciplineRef" ), -1 ),
+        NumberUtils.parseInt( rs.getString( prefix + "typeOfWorkRef" ), -1 ),
+        rs.getString( prefix + "salary" ),
+        NumberUtils.parseInt( rs.getString( prefix + "countryRef" ), -1 ),
+        NumberUtils.parseInt( rs.getString( prefix + "ukRegionRef" ), -1 ),
+        NumberUtils.parseInt( rs.getString( prefix + "countyRef" ), -1 ),
+        rs.getString( prefix + "city" ),
+        rs.getString( prefix + "telephone" ),
+        rs.getString( prefix + "email" ),
+        rs.getString( prefix + "contactName" ),
+        rs.getString( prefix + "description" ),
+        BooleanUtils.parseBoolean( rs.getString( prefix + "forModeration" ) ),
+        NumberUtils.parseInt( rs.getString( prefix + "moderatedJobId" ), -1 )
+         );
+    return memberJob;
+  }
+
+}

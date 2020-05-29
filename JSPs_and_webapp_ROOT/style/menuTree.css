@@ -1,0 +1,26 @@
+.mainMenu a:hover { text-decoration: none; }
+.subMenu  a:hover { text-decoration: none; }
+
+.menuLayer { position: absolute; visibility: hidden; top: 0px; left: 0px; width: 400px; }
+
+.mainMenu       { padding-left: 10px; background: #a0a0a0; border: 4px solid #d0d0d0; }
+.mainMenuOn-1   { background: #ff0000; color: #ffffff; font-weight: bold; border: 1px solid #a0a0a0; padding: 2px 4px 2px 4px; cursor: pointer; }
+.mainMenuOff-1  { background: #ffffff; color: #ff0000; font-weight: bold; border: 1px solid #101010; padding: 2px 4px 2px 4px; cursor: pointer; }
+.mainMenuOn-2   { background: #00ff00; color: #ffffff; font-weight: bold; border: 1px solid #a0a0a0; padding: 2px 4px 2px 4px; cursor: pointer; }
+.mainMenuOff-2  { background: #ffffff; color: #00ff00; font-weight: bold; border: 1px solid #101010; padding: 2px 4px 2px 4px; cursor: pointer; }
+.mainMenuOn-3   { background: #0000ff; color: #ffffff; font-weight: bold; border: 1px solid #a0a0a0; padding: 2px 4px 2px 4px; cursor: pointer; }
+.mainMenuOff-3  { background: #ffffff; color: #0000ff; font-weight: bold; border: 1px solid #101010; padding: 2px 4px 2px 4px; cursor: pointer; }
+.mainMenuOn-4   { background: #ff00ff; color: #ffffff; font-weight: bold; border: 1px solid #a0a0a0; padding: 2px 4px 2px 4px; cursor: pointer; }
+.mainMenuOff-4  { background: #ffffff; color: #ff00ff; font-weight: bold; border: 1px solid #101010; padding: 2px 4px 2px 4px; cursor: pointer; }
+.mainMenuOn-5   { background: #00ffff; color: #ffffff; font-weight: bold; border: 1px solid #a0a0a0; padding: 2px 4px 2px 4px; cursor: pointer; }
+.mainMenuOff-5  { background: #ffffff; color: #00ffff; font-weight: bold; border: 1px solid #101010; padding: 2px 4px 2px 4px; cursor: pointer; }
+.mainMenuOn-6   { background: #ffff00; color: #ffffff; font-weight: bold; border: 1px solid #a0a0a0; padding: 2px 4px 2px 4px; cursor: pointer; }
+.mainMenuOff-6  { background: #ffffff; color: #ffff00; font-weight: bold; border: 1px solid #101010; padding: 2px 4px 2px 4px; cursor: pointer; }
+
+.subMenu     { padding-left: 10px; background: #a0a0a0; border: 4px solid #d0d0d0; filter: progid:DXImageTransform.Microsoft.Shadow(color=#000000,direction=135,Strength=4); }
+.subMenuOnT  { background: #101010; color: #ffffff; font-weight: bold; border: 1px solid #a0a0a0; padding-left: 2px; cursor: pointer; }
+.subMenuOn   { background: #101010; color: #ffffff; font-weight: bold; border: 1px solid #a0a0a0; padding-left: 2px; cursor: pointer; }
+.subMenuOnB  { background: #101010; color: #ffffff; font-weight: bold; border: 1px solid #a0a0a0; padding-left: 2px; cursor: pointer; }
+.subMenuOffT { background: #ffffff; color: #000000; font-weight: bold; border: 1px solid #101010; padding-left: 2px; cursor: pointer; }
+.subMenuOff  { background: #ffffff; color: #000000; font-weight: bold; border: 1px solid #101010; padding-left: 2px; cursor: pointer; }
+.subMenuOffB { background: #ffffff; color: #000000; font-weight: bold; border: 1px solid #101010; padding-left: 2px; cursor: pointer; }

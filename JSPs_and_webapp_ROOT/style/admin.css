@@ -1,0 +1,42 @@
+body { font-family: verdana,arial,helvetica,sans-serif; font-size: 10px; vertical-align: top; background-color: #ffffff; color: #000000; }
+td   { font-family: verdana,arial,helvetica,sans-serif; font-size: 10px; vertical-align: top; }
+
+a       { color: #000000; text-decoration: none; }
+a:hover { color: #121212; text-decoration: underline; }
+
+a img { border: none; }
+
+.adminPane { margin: 10px; }
+
+.title   { font-size: 16px; font-weight: bold; color: #ffad18; padding: 2px 2px 20px 2px; }
+.subHead { font-size: 12px; font-weight: bold; color: #ffad18; padding: 20px 2px 10px 2px; }
+
+.note    { font-size: 8px; font-weight: bold; }
+.error   { color: #ff0000; font-weight: bold; padding-bottom: 5px; }
+.message { color: #008000; font-weight: bold; padding-bottom: 5px; }
+
+.welcomeMessage { padding-top: 50px; text-align: center; font-size: 12pt; font-weight: bold; }
+.welcomeProduct { font-size: 14pt; }
+.welcomeNotes   { text-align: center; font-size: 10pt; }
+
+.formLabel   { font-weight: bold; text-align: right; padding-right: 10px; }
+.formElement { border: 1px solid #000000; background-color: #fffaf0; }
+.formButton  { border: 1px solid #000000; background-color: #ffad18; font-weight: bold; padding-left: 5px; padding-right: 5px; }
+.formButtons { text-align: right; padding-top: 10px; }
+
+.listHead    { background-color: #d0d0d0; font-weight: bold; padding: 2px; }
+.listHead a  { font-weight: normal; color: #2222ee; }
+listHeadModerationLink    { background-color: #d0d0d0; font-weight: normal; color: #2222ee; padding: 1px;}
+listHeadModerationLink  a { font-weight: normal; color: #2222ee; }
+listHeadModerationLable   { background-color: #d0d0d0; font-weight: bold; padding: 2px; text-align: right; padding: 1px; }
+.listSubHead { background-color: #e0e0e0; font-weight: bold; padding: 1px; }
+.listLine0   { background-color: #f8f8f8; padding: 0px 4px 0px 4px; vertical-align: top; }
+.listLine0R  { background-color: #f8f8f8; padding: 0px 4px 0px 4px; vertical-align: top; text-align: right; }
+.listLine1   { background-color: #e8e8e8; padding: 0px 4px 0px 4px; vertical-align: top; }
+.listLine1R  { background-color: #e8e8e8; padding: 0px 4px 0px 4px; vertical-align: top; text-align: right; }
+
+.preview { overflow: auto; height: 400px; }
+
+h1 { font-size: 20px; color:green; }
+h2 { font-size: 14px; color:green; font-weight: bold; }
+h3 { text-align: right; margin-right: 5px; }

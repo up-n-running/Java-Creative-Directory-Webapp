@@ -1,0 +1,18 @@
+body       { font-family: verdana,arial,helvetica,sans-serif; margin: 0px; background: #ffffff no-repeat 6px 5px; border-bottom: 3px solid #000000; }
+
+.headTop   { line-height: 66px; height: 44px; margin: 2px 2px 0px 0px; padding-left: 110;
+             font-size: 16px; font-weight: bold; color: #7e7e7e; vertical-align: bottom; overflow: hidden; }
+
+.headStrap { clear: left; background: #e4e4e4; font-size: 9px; font-weight: bold; padding-left: 6px; }
+
+a.headSupportEmail       { color: #000000; text-decoration: none; float: right; margin-right: 2px; }
+a.headSupportEmail:hover { text-decoration: underline; }
+
+.extSiteHead    { border-bottom-color: #ffad18; background-image: url('/art/admin/menu/extSiteLogo.gif'); }
+.extSellHead    { border-bottom-color: #089923; background-image: url('/art/admin/menu/extSellLogo.gif'); }
+.extPressHead   { border-bottom-color: #089923; background-image: url('/art/admin/menu/extPressLogo.gif'); }
+.extCatHead     { border-bottom-color: #089923; background-image: url('/art/admin/menu/extCatLogo.gif'); }
+.extDirectHead  { border-bottom-color: #3673be; background-image: url('/art/admin/menu/extDirectLogo.gif'); }
+.extTrackedHead { border-bottom-color: #089923; background-image: url('/art/admin/menu/extTrackedLogo.gif'); }
+
+.eleventeenth { float: right; margin: 2px 2px 0px 0px; }

@@ -1,0 +1,29 @@
+body { color: #000000; font-family: verdana,arial,helvetica,sans-serif; font-size: 10px; background: #ffffff repeat-y; margin: 0px; }
+
+.menuMenu        { margin: 0px; width: 145px; }
+.menuGroup       { padding: 0px 0px 5px 0px; background: #e4e4e4 url('/art/admin/menu/lightbarB.gif') no-repeat bottom right; margin-bottom: 5px; width: 145px; }
+.menuGreetTop    { padding: 5px 0px 0px 6px; background: #e4e4e4 url('/art/admin/menu/lightbarT.gif') no-repeat top right; font-weight: bold; }
+.menuGreetMid    { font-weight: bold; padding-left: 6px; }
+.menuLogoutLink  { display: block; text-align: right; margin: 4px 5px 0px 0px; }
+.menuLogoutImg   { border: none; }
+.menuGroupTitle  { padding: 2px 0px 2px 6px; background: #c8c8c8 url('/art/admin/menu/darkbarT.gif') no-repeat top right; font-weight: bold; }
+.menuGroupTitleO { padding: 2px 0px 2px 6px; background: #c8c8c8 url('/art/admin/menu/darkbarTU.gif') no-repeat top right; font-weight: bold; }
+.menuGroupTitleC { padding: 2px 0px 2px 6px; background: #c8c8c8 url('/art/admin/menu/darkbarTD.gif') no-repeat top right; font-weight: bold; }
+.menuGroupCollapser { text-decoration: none; color: #000000; width: 145px; }
+.menuGroupLinks  { padding-top: 2px; }
+a.menuGroupLink  { color: #000000; text-decoration: none; display: block; padding-left: 12px; }
+a.menuGroupLink:hover { text-decoration: underline; }
+
+.extSiteMenu    { background: url('/art/admin/menu/extSiteBack.gif') }
+.extSellMenu    { background: url('/art/admin/menu/extSellBack.gif') }
+.extPressMenu   { background: url('/art/admin/menu/extPressBack.gif') }
+.extCatMenu     { background: url('/art/admin/menu/extCatBack.gif') }
+.extDirectMenu  { background: url('/art/admin/menu/extDirectBack.gif') }
+.extTrackedMenu { background: url('/art/admin/menu/extTrackedBack.gif') }
+
+.extSiteMenuHead    { background: url('/art/admin/menu/extSiteCurve.gif')    no-repeat top right; height: 15px; margin-right: 24px; }
+.extSellMenuHead    { background: url('/art/admin/menu/extSellCurve.gif')    no-repeat top right; height: 15px; margin-right: 24px; }
+.extPressMenuHead   { background: url('/art/admin/menu/extPressCurve.gif')   no-repeat top right; height: 15px; margin-right: 24px; }
+.extCatMenuHead     { background: url('/art/admin/menu/extCatCurve.gif')     no-repeat top right; height: 15px; margin-right: 24px; }
+.extDirectMenuHead  { background: url('/art/admin/menu/extDirectCurve.gif')  no-repeat top right; height: 15px; margin-right: 24px; }
+.extTrackedMenuHead { background: url('/art/admin/menu/extTrackedCurve.gif') no-repeat top right; height: 15px; margin-right: 24px; }

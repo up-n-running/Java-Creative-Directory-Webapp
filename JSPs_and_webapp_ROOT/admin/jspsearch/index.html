@@ -1,0 +1,22 @@
+<html>
+<head>
+  <title>JSP Search</title>
+  <link rel="stylesheet" type="text/css" href="/style/admin.css">
+</head>
+<body>
+<script type="text/javascript">
+function addSearch()
+{
+  window.sidebar.addSearchEngine(
+    "http://" + document.location.hostname + "/admin/jspsearch/jspsearch.src",
+    "http://" + document.location.hostname + "/admin/jspsearch/jspsearch.gif",
+    "CatalysisNet JSP Search",
+    "" );
+}
+
+if( ( typeof window.sidebar == "object" ) && ( typeof window.sidebar.addSearchEngine == "function" ) )
+{
+  document.write( "Add a <a href=\"#\" onClick=\"addSearch(); return false;\">JSP Search</a> to Mozilla/NS6" );
+}
+</script>
+</body>

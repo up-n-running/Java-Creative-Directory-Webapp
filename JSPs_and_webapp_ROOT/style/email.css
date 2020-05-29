@@ -1,0 +1,35 @@
+body { font-family: verdana,arial,helvetica,sans-serif; font-size: 11px; background: #ffffff; color:#3d4a7e; margin: 0px; }
+
+h1
+{
+  font-family: arial, verdana, helvetica,sans-serif;
+  margin: 0px;
+  margin-bottom: 12px;
+  font-size: 17px;
+  color: #5d5d5d;
+  border-bottom-width:1px;
+  border-bottom-color:#8d8d8d;
+  border-bottom-style:solid;
+  width: 340px;
+}
+h2 { font-size: 18px; }
+h3 { font-size: 14px; font-weight: bold; }
+h4 { margin: 0px; margin-bottom: 8px; font-size: 13px; font-weight: bold; color: #000000; }
+h5 { margin: 0px; margin-bottom: 8px; font-size: 13px; font-weight: bold; }
+h6
+{
+  margin: 0px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: bold;
+  padding-right: 15px;
+  background: url('/art/textdecor/linkBgBlue.gif') no-repeat right;
+  text-align: right;
+  color: #488BFF;
+  white-space: nowrap;
+}
+
+p  { margin: 0px; color:#3d4a7e; margin-bottom: 10px; font-size: 11px; }
+a  { text-decoration: underline; color: #488BFF;   }
+
+p a { font-size:10px; }

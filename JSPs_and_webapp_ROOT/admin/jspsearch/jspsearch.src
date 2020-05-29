@@ -1,0 +1,30 @@
+# Mozilla/11tth JSP Plugin
+
+<search
+   name="extSite"
+   description="extSite Dev JSP Search"
+   method="GET"
+   version="6.1"
+   action="http://extsite.i.11tth.com/cgi-bin/jspSearch.pl"
+   update="http://extsite.i.11tth.com/admin/jspsearch/jspsearch.src"
+   updateCheckDays="7"
+>
+
+<input name="s" user>
+
+<input name="a" value="extsite">
+
+<input name="w" value="extsite.i.11tth.com_8080">
+
+<input name="pr" value="3">
+
+<input name="po" value="3">
+
+</search>
+
+<browser
+  update="http://catalysis.i.e-mu.net/admin/jspsearch/jspsearch.src"
+  updateIcon="http://catalysis.i.e-mu.net/admin/jspsearch/jspsearch.gif"
+  updateCheckDays="7"
+>
+

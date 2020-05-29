@@ -1,0 +1,27 @@
+How to deploy.
+
+Copy files to tomcat/webapps/<webapp>/admin/jspsearch
+
+Change all URIs in jspsearch.src to point to your webapp.
+
+Change all references to extSell to be your webapp name.
+
+Change the <input> tags in jspsearch.src as follows.
+
+  <input name="a"> value becomes webapp directory name under tomcat/webapps.
+
+  <input name="w"> value becomes working directory name under tomcat/work.
+
+  <input name="pr"> value becomes lines of code to display before linewith error.
+
+  <input name="po"> value becomes lines of code to display after line with error.
+
+Go to http://<URI>/admin/jspsearch and click on link.
+
+Choose "OK" to add the search, then select it as your default search engine.
+
+Get an error in a jsp, select a line that contains the following sort of error;
+
+cpages._0002fcpages_0002fcpage_00031_0002ejspcpage1_jsp_13._jspService(_0002fcpages_0002fcpage_00031_0002ejspcpage1_jsp_13.java:778)
+
+Right click and choose "Search <webapp> JSP Search for "..."
